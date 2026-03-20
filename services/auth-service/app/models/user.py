@@ -4,6 +4,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
 
+
 class User(db.Model):
     __tablename__ = 'users'
 
@@ -17,6 +18,11 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
     def set_password(self, password):
@@ -33,6 +39,7 @@ class User(db.Model):
             "role": self.role,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
     def __repr__(self):
