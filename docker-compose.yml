@@ -1,30 +1,8 @@
 version: "3.9"
 
 services:
-  backend:
-    build: ./backend
-    container_name: eventra-backend
-    ports:
-      - "5001:5000"
-    volumes:
-      - ./backend:/app
-    environment:
-      - FLASK_ENV=development
-      - DATABASE_URL=sqlite:///eventra.db
-    depends_on:
-      - db
 
-  frontend:
-    build: ./frontend
-    container_name: eventra-frontend
-    ports:
-      - "5174:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    depends_on:
-      - backend
-
+  # ── DATABASE ──────────────────────────────
   db:
     image: postgres:16-alpine
     container_name: eventra-db
@@ -36,6 +14,108 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eventra_user -d eventra"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── GATEWAY ───────────────────────────────
+  gateway:
+    build: ./services/gateway
+    container_name: eventra-gateway
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./services/gateway:/app
+    environment:
+      - FLASK_ENV=development
+      - AUTH_SERVICE_URL=http://auth-service:5001
+      - EVENT_SERVICE_URL=http://event-service:5002
+      - REGISTRATION_SERVICE_URL=http://registration-service:5003
+      - ADMIN_SERVICE_URL=http://admin-service:5004
+    depends_on:
+      - auth-service
+      - event-service
+      - registration-service
+      - admin-service
+
+  # ── AUTH SERVICE ──────────────────────────
+  auth-service:
+    build: ./services/auth-service
+    container_name: eventra-auth
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./services/auth-service:/app
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://eventra_user:eventra_pass@db:5432/eventra
+      - JWT_SECRET_KEY=super-secret-key-change-in-prod
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── EVENT SERVICE ─────────────────────────
+  event-service:
+    build: ./services/event-service
+    container_name: eventra-event
+    ports:
+      - "5002:5002"
+    volumes:
+      - ./services/event-service:/app
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://eventra_user:eventra_pass@db:5432/eventra
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── REGISTRATION SERVICE ──────────────────
+  registration-service:
+    build: ./services/registration-service
+    container_name: eventra-registration
+    ports:
+      - "5003:5003"
+    volumes:
+      - ./services/registration-service:/app
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://eventra_user:eventra_pass@db:5432/eventra
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── ADMIN SERVICE ─────────────────────────
+  admin-service:
+    build: ./services/admin-service
+    container_name: eventra-admin
+    ports:
+      - "5004:5004"
+    volumes:
+      - ./services/admin-service:/app
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://eventra_user:eventra_pass@db:5432/eventra
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── FRONTEND ──────────────────────────────
+  frontend:
+    build: ./frontend
+    container_name: eventra-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    depends_on:
+      - gateway
 
 volumes:
   postgres_data:
