@@ -1,1 +1,6 @@
+# Python lint + format check
+cd ../services/gateway && source venv/bin/activate && black --check . && isort --check-only . && flake8 . && deactivate
+cd ../../frontend
+
+# JS/React lint
 npm run lint

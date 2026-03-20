@@ -11,3 +11,10 @@ frontend/.env
 # DB
 *.db
 *.sqlite3
+
+# Python services
+services/*/venv/
+services/*/__pycache__/
+services/*/*.pyc
+services/*/.env
+services/*/*.db
