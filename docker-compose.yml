@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: eventra_user
       POSTGRES_PASSWORD: eventra_pass
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -25,7 +25,7 @@ services:
     build: ./services/gateway
     container_name: eventra-gateway
     ports:
-      - "5000:5000"
+      - "5050:5000"
     volumes:
       - ./services/gateway:/app
     environment:
@@ -45,7 +45,7 @@ services:
     build: ./services/auth-service
     container_name: eventra-auth
     ports:
-      - "5001:5001"
+      - "5051:5001"
     volumes:
       - ./services/auth-service:/app
     environment:
@@ -61,12 +61,13 @@ services:
     build: ./services/event-service
     container_name: eventra-event
     ports:
-      - "5002:5002"
+      - "5052:5002"
     volumes:
       - ./services/event-service:/app
     environment:
       - FLASK_ENV=development
       - DATABASE_URL=postgresql://eventra_user:eventra_pass@db:5432/eventra
+      - JWT_SECRET_KEY=super-secret-key-change-in-prod
     depends_on:
       db:
         condition: service_healthy
@@ -76,12 +77,13 @@ services:
     build: ./services/registration-service
     container_name: eventra-registration
     ports:
-      - "5003:5003"
+      - "5053:5003"
     volumes:
       - ./services/registration-service:/app
     environment:
       - FLASK_ENV=development
       - DATABASE_URL=postgresql://eventra_user:eventra_pass@db:5432/eventra
+      - JWT_SECRET_KEY=super-secret-key-change-in-prod
       - SMTP_HOST=smtp.gmail.com
       - SMTP_PORT=587
     depends_on:
@@ -93,12 +95,13 @@ services:
     build: ./services/admin-service
     container_name: eventra-admin
     ports:
-      - "5004:5004"
+      - "5054:5004"
     volumes:
       - ./services/admin-service:/app
     environment:
       - FLASK_ENV=development
       - DATABASE_URL=postgresql://eventra_user:eventra_pass@db:5432/eventra
+      - JWT_SECRET_KEY=super-secret-key-change-in-prod
     depends_on:
       db:
         condition: service_healthy
@@ -108,12 +111,12 @@ services:
     build: ./frontend
     container_name: eventra-frontend
     ports:
-      - "5173:5173"
+      - "5055:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:5000
+      - VITE_API_URL=http://localhost:5050
     depends_on:
       - gateway
 

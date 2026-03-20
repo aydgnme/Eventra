@@ -13,6 +13,7 @@ def create_app():
     db.init_app(app)
     jwt.init_app(app)
 
+    from app.models import event, material, sponsor, notification  # noqa: F401
     from app.routes.events import events_bp
 
     app.register_blueprint(events_bp, url_prefix='/events')
