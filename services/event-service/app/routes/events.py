@@ -1,10 +1,19 @@
+from datetime import datetime
+
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 
 from app import db
-from app.models.event import Event
+from app.models.event import Event, EventCategory, ParticipationMode
 
 events_bp = Blueprint("events", __name__)
+
+
+def _parse_dt(value, field_name):
+    try:
+        return datetime.fromisoformat(value), None
+    except (ValueError, TypeError):
+        return None, jsonify({"error": f"Invalid {field_name} format (use ISO 8601)"}), 400
 
 
 @events_bp.route("/", methods=["GET"])
@@ -33,35 +42,48 @@ def create_event():
         return jsonify({"error": "No data provided"}), 400
 
     title = data.get("title", "").strip()
-    start_time_raw = data.get("start_time")
+    start_raw = data.get("start_datetime")
+    end_raw = data.get("end_datetime")
 
-    if not title or not start_time_raw:
-        return jsonify({"error": "title and start_time are required"}), 400
+    if not title or not start_raw or not end_raw:
+        return jsonify({"error": "title, start_datetime and end_datetime are required"}), 400
 
-    try:
-        from datetime import datetime
-        start_time = datetime.fromisoformat(start_time_raw)
-    except (ValueError, TypeError):
-        return jsonify({"error": "Invalid start_time format (use ISO 8601)"}), 400
+    result = _parse_dt(start_raw, "start_datetime")
+    if result[1]:
+        return result[1], result[2]
+    start_datetime = result[0]
 
-    end_time = None
-    if data.get("end_time"):
+    result = _parse_dt(end_raw, "end_datetime")
+    if result[1]:
+        return result[1], result[2]
+    end_datetime = result[0]
+
+    category = None
+    if data.get("category"):
         try:
-            from datetime import datetime
-            end_time = datetime.fromisoformat(data["end_time"])
-        except (ValueError, TypeError):
-            return jsonify({"error": "Invalid end_time format (use ISO 8601)"}), 400
+            category = EventCategory(data["category"])
+        except ValueError:
+            return jsonify({"error": f"Invalid category. Valid: {[c.value for c in EventCategory]}"}), 400
 
-    organizer_id = int(get_jwt_identity())
+    participation_mode = None
+    if data.get("participation_mode"):
+        try:
+            participation_mode = ParticipationMode(data["participation_mode"])
+        except ValueError:
+            return jsonify({"error": f"Invalid participation_mode. Valid: {[m.value for m in ParticipationMode]}"}), 400
 
     event = Event(
         title=title,
         description=data.get("description"),
         location=data.get("location"),
-        start_time=start_time,
-        end_time=end_time,
+        category=category,
+        participation_mode=participation_mode,
+        start_datetime=start_datetime,
+        end_datetime=end_datetime,
         capacity=data.get("capacity"),
-        organizer_id=organizer_id,
+        qr_code=data.get("qr_code"),
+        link_registration=data.get("link_registration"),
+        organizer_id=int(get_jwt_identity()),
         is_published=data.get("is_published", False),
     )
     db.session.add(event)
@@ -87,28 +109,29 @@ def update_event(event_id):
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
-    if "title" in data:
-        event.title = data["title"].strip()
-    if "description" in data:
-        event.description = data["description"]
-    if "location" in data:
-        event.location = data["location"]
-    if "capacity" in data:
-        event.capacity = data["capacity"]
-    if "is_published" in data:
-        event.is_published = data["is_published"]
-    if "start_time" in data:
+    simple_fields = ["title", "description", "location", "capacity", "is_published", "qr_code", "link_registration"]
+    for field in simple_fields:
+        if field in data:
+            setattr(event, field, data[field].strip() if isinstance(data[field], str) else data[field])
+
+    for field in ("start_datetime", "end_datetime"):
+        if field in data:
+            result = _parse_dt(data[field], field)
+            if result[1]:
+                return result[1], result[2]
+            setattr(event, field, result[0])
+
+    if "category" in data:
         try:
-            from datetime import datetime
-            event.start_time = datetime.fromisoformat(data["start_time"])
-        except (ValueError, TypeError):
-            return jsonify({"error": "Invalid start_time format"}), 400
-    if "end_time" in data:
+            event.category = EventCategory(data["category"])
+        except ValueError:
+            return jsonify({"error": f"Invalid category"}), 400
+
+    if "participation_mode" in data:
         try:
-            from datetime import datetime
-            event.end_time = datetime.fromisoformat(data["end_time"])
-        except (ValueError, TypeError):
-            return jsonify({"error": "Invalid end_time format"}), 400
+            event.participation_mode = ParticipationMode(data["participation_mode"])
+        except ValueError:
+            return jsonify({"error": "Invalid participation_mode"}), 400
 
     db.session.commit()
     return jsonify({"message": "Event updated", "event": event.to_dict()}), 200

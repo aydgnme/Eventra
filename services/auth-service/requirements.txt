@@ -17,6 +17,7 @@ platformdirs==4.9.4
 pycodestyle==2.14.0
 pyflakes==3.4.0
 PyJWT==2.12.1
+psycopg2-binary==2.9.10
 python-dotenv==1.2.2
 pytokens==0.4.1
 SQLAlchemy==2.0.48
