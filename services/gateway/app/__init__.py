@@ -26,6 +26,9 @@ def _is_public() -> bool:
     # Read-only event listing and detail are public
     if request.method == "GET" and request.path.startswith("/events/"):
         return True
+    # Google OAuth flow: no JWT at this point, browser-driven redirect
+    if request.method == "GET" and request.path.startswith("/auth/oauth/"):
+        return True
     return False
 
 

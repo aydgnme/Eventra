@@ -38,15 +38,15 @@ def google_login():
 
 @oauth_bp.route("/google/callback")
 def google_callback():
-    # 1. Verify state
-    state = request.args.get("state", "")
-    if not _verify_state(state):
-        return _redirect_error("Invalid state parameter. Please try again.")
-
-    # 2. Check for error from Google
+    # 1. Check for error from Google (user denied, etc.)
     error = request.args.get("error")
     if error:
         return _redirect_error("Google sign-in was cancelled or failed.")
+
+    # 2. Verify state (CSRF protection)
+    state = request.args.get("state", "")
+    if not _verify_state(state):
+        return _redirect_error("Invalid state parameter. Please try again.")
 
     # 3. Exchange code for token
     code = request.args.get("code")
@@ -74,7 +74,7 @@ def google_callback():
 
     profile = info_resp.json()
     email = profile.get("email", "")
-    full_name = _full_name_from_email(email) or profile.get("name", "")
+    full_name = profile.get("name", "") or _full_name_from_email(email)
 
     # 5. Verify email domain
     if not email.endswith(f"@{ALLOWED_DOMAIN}"):
@@ -88,13 +88,13 @@ def google_callback():
             full_name=full_name,
             role="student",
             oauth_provider="google",
-            oauth_id=profile.get("id"),
+            oauth_id=profile.get("sub"),
         )
         db.session.add(user)
         db.session.commit()
     elif not user.oauth_provider:
         user.oauth_provider = "google"
-        user.oauth_id = profile.get("id")
+        user.oauth_id = profile.get("sub")
         db.session.commit()
 
     if not user.is_active:
