@@ -50,6 +50,9 @@ def google_callback():
 
     # 3. Exchange code for token
     code = request.args.get("code")
+    if not code:
+        return _redirect_error("Authorization code missing.")
+
     token_resp = http_requests.post(
         GOOGLE_TOKEN_ENDPOINT,
         data={
@@ -65,6 +68,9 @@ def google_callback():
 
     # 4. Get user info
     google_token = token_resp.json().get("access_token")
+    if not google_token:
+        return _redirect_error("Failed to parse token response from Google.")
+
     info_resp = http_requests.get(
         GOOGLE_USERINFO_ENDPOINT,
         headers={"Authorization": f"Bearer {google_token}"},
@@ -74,6 +80,9 @@ def google_callback():
 
     profile = info_resp.json()
     email = profile.get("email", "")
+    if not email:
+        return _redirect_error("Email not provided by Google.")
+
     full_name = profile.get("name", "") or _full_name_from_email(email)
 
     # 5. Verify email domain

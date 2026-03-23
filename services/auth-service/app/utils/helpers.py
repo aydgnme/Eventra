@@ -46,5 +46,5 @@ def _verify_state(state: str, max_age: int = 300) -> bool:
         if int(time.time()) - int(ts) > max_age:
             return False
         return True
-    except Exception:
+    except (ValueError, IndexError):
         return False

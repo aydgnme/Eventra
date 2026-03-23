@@ -23,6 +23,9 @@ def register():
     if not email or not password or not full_name:
         return jsonify({"error": "email, password and full_name are required"}), 400
 
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+
     if not is_valid_email(email):
         return jsonify({"error": "Invalid email format"}), 400
 
@@ -81,7 +84,7 @@ def login():
 @jwt_required()
 def me():
     user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    user = User.query.get(int(user_id))
 
     if not user:
         return jsonify({"error": "User not found"}), 404
