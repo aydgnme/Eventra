@@ -1,11 +1,12 @@
 {
   "info": {
     "name": "Eventra API — Alpha",
-    "description": "University Event Management Platform — Alpha collection covering Gateway, Auth, Events, and Registrations services.",
+    "description": "University Event Management Platform — Alpha collection covering Gateway, Auth, OAuth, Events, and Registrations services.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "base_url", "value": "http://localhost:5050", "type": "string" },
+    { "key": "auth_direct_url", "value": "http://localhost:5051", "type": "string" },
     { "key": "access_token", "value": "", "type": "string" }
   ],
   "item": [
@@ -28,7 +29,7 @@
       ]
     },
     {
-      "name": "Auth",
+      "name": "Auth — Email & Password",
       "item": [
         {
           "name": "Register — Student",
@@ -74,7 +75,7 @@
                   "const json = pm.response.json();",
                   "if (json.access_token) {",
                   "  pm.collectionVariables.set('access_token', json.access_token);",
-                  "  console.log('Token saved to collection variable.');",
+                  "  console.log('Token saved:', json.access_token.substring(0, 40) + '...');",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -119,6 +120,110 @@
               "host": ["{{base_url}}"],
               "path": ["auth", "logout"]
             }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth — Google OAuth",
+      "description": "Google OAuth 2.0 flow runs through the browser.\n\nTest steps:\n1. Run 'OAuth Login URL' request → you will see a 302 redirect\n2. Copy the Location URL and open it in your browser → Google login screen appears\n3. Sign in with your @student.usv.ro account\n4. On success, you will be redirected to: http://localhost:5055/oauth/callback?token=<JWT>\n5. Copy the token from the URL → set it as the 'access_token' collection variable",
+      "item": [
+        {
+          "name": "1 — OAuth Login URL (redirect'i gör)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const redirectUrl = pm.response.headers.get('Location');",
+                  "if (redirectUrl) {",
+                  "  console.log('Google OAuth URL:');",
+                  "  console.log(redirectUrl);",
+                  "  console.log('');",
+                  "  console.log('Open this URL in your browser and sign in with @student.usv.ro.');",
+                  "} else {",
+                  "  console.log('No redirect header found. Make sure Follow Redirects is disabled.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_direct_url}}/auth/oauth/google",
+              "host": ["{{auth_direct_url}}"],
+              "path": ["auth", "oauth", "google"]
+            },
+            "description": "In Postman Settings → disable 'Automatically follow redirects'. Otherwise Postman will follow the redirect to Google and you won't see the Location header."
+          },
+          "response": []
+        },
+        {
+          "name": "2 — Token'ı collection variable'a yaz",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Tarayicidan aldığın JWT'yi buraya yapıştır:",
+                  "const token = pm.variables.get('oauth_token_paste');",
+                  "if (token) {",
+                  "  pm.collectionVariables.set('access_token', token);",
+                  "  console.log('Token set edildi.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Calls /me to verify the OAuth token. Returns user info if the token is valid."
+          },
+          "response": []
+        },
+        {
+          "name": "3 — Domain Engeli Testi (non-usv.ro)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Non-USV domain reddedilmeli', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "pm.test('Error message mentions allowed domain', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.error).to.include('student.usv.ro');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth_direct_url}}/auth/oauth/google/callback?code=fake_code&state=fake_state",
+              "host": ["{{auth_direct_url}}"],
+              "path": ["auth", "oauth", "google", "callback"],
+              "query": [
+                { "key": "code", "value": "fake_code" },
+                { "key": "state", "value": "fake_state" }
+              ]
+            },
+            "description": "Calls the callback with an invalid state → expects 400 Invalid state. Verifies CSRF protection is working."
           },
           "response": []
         }

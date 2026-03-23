@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 
 from app import db
 from app.models.user import User
@@ -66,10 +66,15 @@ def login():
         additional_claims={"role": user.role, "email": user.email},
     )
 
-    return jsonify({
-        "access_token": access_token,
-        "user": user.to_dict(),
-    }), 200
+    return (
+        jsonify(
+            {
+                "access_token": access_token,
+                "user": user.to_dict(),
+            }
+        ),
+        200,
+    )
 
 
 @auth_bp.route("/me", methods=["GET"])
