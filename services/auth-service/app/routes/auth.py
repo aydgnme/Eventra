@@ -3,7 +3,8 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_requir
 
 from app import db
 from app.models.user import User
-from app.utils.helpers import is_valid_email
+
+from app.utils.helpers import is_valid_email, is_student_email
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -29,8 +30,14 @@ def register():
     if not is_valid_email(email):
         return jsonify({"error": "Invalid email format"}), 400
 
-    if role not in ["student", "organizer", "admin"]:
+    if role not in ["student", "organizer"]:
         return jsonify({"error": "Invalid role"}), 400
+
+    if is_student_email(email) and role != "student":
+        return jsonify({"error": "University emails can only register as student"}), 400
+
+    if not is_student_email(email) and role == "student":
+        return jsonify({"error": "Student role requires a @student.usv.ro email"}), 400
 
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Email already registered"}), 409
@@ -84,7 +91,7 @@ def login():
 @jwt_required()
 def me():
     user_id = get_jwt_identity()
-    user = User.query.get(int(user_id))
+    user = db.session.get(User, int(user_id))
 
     if not user:
         return jsonify({"error": "User not found"}), 404

@@ -6,15 +6,18 @@ from flask_jwt_extended import create_access_token
 
 from app import db
 from app.models.user import User
-from app.utils.helpers import _full_name_from_email, _make_state, _verify_state
+from app.utils.helpers import (
+    _full_name_from_email,
+    _make_state,
+    _verify_state,
+    role_from_university_email,
+)
 
 oauth_bp = Blueprint("oauth", __name__)
 
 GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v3/userinfo"
-
-ALLOWED_DOMAIN = "student.usv.ro"
 
 
 def _redirect_error(message: str):
@@ -85,9 +88,12 @@ def google_callback():
 
     full_name = profile.get("name", "") or _full_name_from_email(email)
 
-    # 5. Verify email domain
-    if not email.endswith(f"@{ALLOWED_DOMAIN}"):
-        return _redirect_error(f"Only @{ALLOWED_DOMAIN} accounts are allowed.")
+    # 5. Verify email domain and assign the Eventra role.
+    role = role_from_university_email(email)
+    if not role:
+        return _redirect_error(
+            "Only official USV student and staff Google accounts are allowed."
+        )
 
     # 6. Find or create user
     user = User.query.filter_by(email=email).first()
@@ -95,15 +101,20 @@ def google_callback():
         user = User(
             email=email,
             full_name=full_name,
-            role="student",
+            role=role,
             oauth_provider="google",
             oauth_id=profile.get("sub"),
         )
         db.session.add(user)
         db.session.commit()
-    elif not user.oauth_provider:
-        user.oauth_provider = "google"
-        user.oauth_id = profile.get("sub")
+    else:
+        if user.role != role:
+            user.role = role
+        if not user.oauth_provider:
+            user.oauth_provider = "google"
+            user.oauth_id = profile.get("sub")
+        elif not user.oauth_id:
+            user.oauth_id = profile.get("sub")
         db.session.commit()
 
     if not user.is_active:

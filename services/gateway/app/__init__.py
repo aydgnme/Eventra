@@ -4,6 +4,7 @@ import jwt as pyjwt
 import requests
 from flask import Flask, Response, g, jsonify, request
 from flask_cors import CORS
+from flask_limiter import Limiter
 
 from config import config as config_map
 
@@ -18,6 +19,22 @@ PUBLIC_ROUTES = {
 ADMIN_ONLY_PREFIXES = ["/admin"]
 
 FORWARDED_HEADERS = {"Content-Type", "Authorization", "Accept", "X-Request-ID"}
+
+
+def _get_real_ip() -> str:
+    """Return the real client IP, preferring Cloudflare's CF-Connecting-IP header."""
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.remote_addr
+
+
+# storage_uri and default_limits are read from Flask app config
+# (RATELIMIT_STORAGE_URI, RATELIMIT_DEFAULT) when limiter.init_app(app) is called
+limiter = Limiter(key_func=_get_real_ip)
 
 
 def _is_public() -> bool:
@@ -51,11 +68,14 @@ def _proxy(target_url: str) -> Response:
             timeout=10,
             allow_redirects=False,
         )
-        return Response(
+        response = Response(
             resp.content,
             status=resp.status_code,
             content_type=resp.headers.get("Content-Type", "application/json"),
         )
+        if "Location" in resp.headers:
+            response.headers["Location"] = resp.headers["Location"]
+        return response
     except requests.exceptions.ConnectionError:
         return jsonify({"error": "Service unavailable"}), 503
     except requests.exceptions.Timeout:
@@ -70,15 +90,25 @@ def create_app(config_name: str = None) -> Flask:
     app.config.from_object(cfg)
 
     CORS(app, origins=cfg.CORS_ORIGINS)
+    limiter.init_app(app)
 
     jwt_secret = app.config["JWT_SECRET_KEY"]
+    auth_url = app.config["AUTH_SERVICE_URL"]
 
     routes = {
-        "/auth": app.config["AUTH_SERVICE_URL"],
+        "/auth": auth_url,
         "/events": app.config["EVENT_SERVICE_URL"],
         "/registrations": app.config["REGISTRATION_SERVICE_URL"],
         "/admin": app.config["ADMIN_SERVICE_URL"],
     }
+
+    @app.before_request
+    def enforce_cloudflare():
+        """In production, block requests that didn't pass through Cloudflare."""
+        if request.path == "/health":
+            return
+        if app.config.get("CLOUDFLARE_ONLY") and not request.headers.get("CF-Ray"):
+            return jsonify({"error": "Direct access not allowed"}), 403
 
     @app.before_request
     def authenticate():
@@ -107,6 +137,17 @@ def create_app(config_name: str = None) -> Flask:
     @app.route("/health")
     def health():
         return jsonify({"status": "ok", "service": "gateway"})
+
+    # Auth endpoints with stricter rate limits (registered before the catch-all proxy)
+    @app.route("/auth/login", methods=["POST"])
+    @limiter.limit(cfg.RATELIMIT_AUTH_LOGIN)
+    def auth_login():
+        return _proxy(f"{auth_url}/auth/login")
+
+    @app.route("/auth/register", methods=["POST"])
+    @limiter.limit(cfg.RATELIMIT_AUTH_REGISTER)
+    def auth_register():
+        return _proxy(f"{auth_url}/auth/register")
 
     for prefix, base_url in routes.items():
         _register_proxy(app, prefix, base_url)
