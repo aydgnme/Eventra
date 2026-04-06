@@ -87,9 +87,9 @@ clean_db (autouse, function) — wipes all rows after each test
 | POST /auth/login | `test_login.py` | 20 | Credentials, disabled accounts, JWT claims |
 | GET /auth/me | `test_me.py` | 10 | Token validation, claim verification |
 | POST /auth/logout | `test_logout.py` | 6 | Auth guard, stateless note |
-| OAuth Google | `test_oauth.py` | 16 | Mocked Google API, state CSRF, DB side effects |
-| Helpers | `test_helpers.py` | 32 | Pure functions, no DB needed |
-| **Total** | | **112** | |
+| OAuth Google | `test_oauth.py` | 18 | Mocked Google API, state CSRF, DB side effects |
+| Helpers | `test_helpers.py` | 43 | Pure functions, no DB needed |
+| **Total** | | **125** | |
 
 ---
 
@@ -484,11 +484,11 @@ pytest -m "not slow and not integration"
 ### Expected output (clean run)
 
 ```
-tests/test_helpers.py     ................................ [ 32 passed ]
+tests/test_helpers.py     ........................................... [ 43 passed ]
 tests/test_login.py       .................... [ 20 passed ]
 tests/test_logout.py      ...... [  6 passed ]
 tests/test_me.py          .......... [ 10 passed ]
-tests/test_oauth.py       ................ [ 16 passed ]
+tests/test_oauth.py       .................. [ 18 passed ]
 tests/test_register.py    ............................ [ 28 passed ]
-========== 112 passed in X.XXs ==========
+========== 125 passed in X.XXs ==========
 ```
