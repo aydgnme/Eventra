@@ -18,3 +18,11 @@ services/*/__pycache__/
 services/*/*.pyc
 services/*/.env
 services/*/*.db
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# vscode
+.vscode/
