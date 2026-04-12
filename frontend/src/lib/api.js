@@ -40,3 +40,22 @@ export function getOAuthGoogleUrl() {
   const base = import.meta.env.VITE_OAUTH_BASE ?? 'http://localhost:5051'
   return `${base}/auth/oauth/google`
 }
+
+export const eventsApi = {
+  list: (params = {}) => {
+    const qs = new URLSearchParams()
+    if (params.q) qs.set('q', params.q)
+    if (params.category) qs.set('category', params.category)
+    if (params.mode) qs.set('mode', params.mode)
+    if (params.from) qs.set('from', params.from)
+    if (params.to) qs.set('to', params.to)
+    if (params.page) qs.set('page', params.page)
+    if (params.per_page) qs.set('per_page', params.per_page)
+    const query = qs.toString()
+    return request(`/events/${query ? `?${query}` : ''}`)
+  },
+
+  get: (id) => request(`/events/${id}`),
+
+  mine: () => request('/events/mine'),
+}
