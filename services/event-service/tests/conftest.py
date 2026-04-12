@@ -4,6 +4,7 @@ Shared pytest fixtures for event-service tests.
 Uses an in-memory SQLite database so tests are isolated and fast.
 """
 import os
+import tempfile
 from datetime import datetime, timedelta, timezone
 
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
@@ -16,11 +17,15 @@ from flask_jwt_extended import create_access_token
 from app import create_app
 from app import db as _db
 
+_TMP_UPLOAD_DIR = tempfile.mkdtemp()
+
 TEST_CONFIG = {
     "TESTING": True,
     "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
     "SECRET_KEY": "test-secret-key-32-bytes-long!!!",
     "JWT_SECRET_KEY": "test-jwt-secret-key-32-bytes!!!!",
+    "UPLOAD_FOLDER": _TMP_UPLOAD_DIR,
+    "MAX_CONTENT_LENGTH": 16 * 1024 * 1024,
 }
 
 # ---------------------------------------------------------------------------

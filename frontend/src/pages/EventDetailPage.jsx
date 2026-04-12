@@ -4,15 +4,18 @@ import {
   ArrowLeft,
   Calendar,
   Clock,
-  MapPin,
-  Users,
-  ExternalLink,
   Download,
-  QrCode,
+  ExternalLink,
+  FileText,
+  Image,
   LogOut,
+  MapPin,
+  Paperclip,
+  QrCode,
+  Users,
 } from 'lucide-react'
 import QRCode from 'qrcode'
-import { eventsApi } from '../lib/api'
+import { eventsApi, materialsApi } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 
 const CATEGORY_COLORS = {
@@ -79,6 +82,56 @@ function downloadICS(event) {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+const FILE_ICONS = {
+  pdf: <FileText className="w-4 h-4 text-red-400 flex-shrink-0" />,
+  image: <Image className="w-4 h-4 text-blue-400 flex-shrink-0" />,
+  presentation: <FileText className="w-4 h-4 text-orange-400 flex-shrink-0" />,
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function MaterialsList({ eventId }) {
+  const [materials, setMaterials] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    materialsApi
+      .list(eventId)
+      .then((d) => setMaterials(d.materials))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [eventId])
+
+  if (loading || materials.length === 0) return null
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+      <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">
+        Materials
+      </h2>
+      <div className="space-y-2">
+        {materials.map((m) => (
+          <a
+            key={m.id}
+            href={materialsApi.downloadUrl(eventId, m.id)}
+            className="flex items-center gap-3 px-3 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors group"
+          >
+            {FILE_ICONS[m.file_type] ?? <Paperclip className="w-4 h-4 text-slate-400 flex-shrink-0" />}
+            <span className="flex-1 text-sm text-slate-200 truncate">{m.file_name}</span>
+            <span className="text-xs text-slate-500">{formatBytes(m.file_size)}</span>
+            <Download className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition-colors flex-shrink-0" />
+          </a>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function QRCodeDisplay({ data }) {
@@ -234,6 +287,8 @@ export default function EventDetailPage() {
                   </div>
                 )}
               </div>
+
+              <MaterialsList eventId={event.id} />
 
               {event.link_registration && (
                 <a

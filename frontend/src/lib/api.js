@@ -58,4 +58,37 @@ export const eventsApi = {
   get: (id) => request(`/events/${id}`),
 
   mine: () => request('/events/mine'),
+
+  create: (data) =>
+    request('/events/', { method: 'POST', body: JSON.stringify(data) }),
+
+  update: (id, data) =>
+    request(`/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  remove: (id) => request(`/events/${id}`, { method: 'DELETE' }),
+}
+
+export const materialsApi = {
+  list: (eventId) => request(`/events/${eventId}/materials`),
+
+  upload: (eventId, file) => {
+    const token = localStorage.getItem('eventra_token')
+    const form = new FormData()
+    form.append('file', file)
+    return fetch(`${BASE}/events/${eventId}/materials`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    }).then(async (res) => {
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`)
+      return data
+    })
+  },
+
+  remove: (eventId, materialId) =>
+    request(`/events/${eventId}/materials/${materialId}`, { method: 'DELETE' }),
+
+  downloadUrl: (eventId, materialId) =>
+    `${BASE}/events/${eventId}/materials/${materialId}/download`,
 }

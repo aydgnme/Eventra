@@ -6,6 +6,7 @@ import OAuthCallbackPage from './pages/OAuthCallbackPage'
 import DashboardPage from './pages/DashboardPage'
 import EventsPage from './pages/EventsPage'
 import EventDetailPage from './pages/EventDetailPage'
+import OrganizerDashboard from './pages/OrganizerDashboard'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -62,6 +63,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <EventDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizer"
+            element={
+              <ProtectedRoute>
+                <OrganizerDashboard />
               </ProtectedRoute>
             }
           />

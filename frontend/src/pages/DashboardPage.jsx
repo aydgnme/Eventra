@@ -1,4 +1,4 @@
-import { Calendar, LogOut, ArrowRight } from 'lucide-react'
+import { Calendar, LogOut, ArrowRight, LayoutDashboard } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
 
@@ -37,21 +37,41 @@ export default function DashboardPage() {
           Role: <span className="text-indigo-400 font-medium">{user?.role}</span>
         </p>
 
-        <Link
-          to="/events"
-          className="flex items-center justify-between px-5 py-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-indigo-500/50 hover:bg-slate-800/60 transition-all group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-indigo-400" />
+        <div className="space-y-3">
+          <Link
+            to="/events"
+            className="flex items-center justify-between px-5 py-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-indigo-500/50 hover:bg-slate-800/60 transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-indigo-400" />
+              </div>
+              <div>
+                <p className="font-medium text-slate-100">Browse Events</p>
+                <p className="text-xs text-slate-500">Search, filter, and explore events</p>
+              </div>
             </div>
-            <div>
-              <p className="font-medium text-slate-100">Browse Events</p>
-              <p className="text-xs text-slate-500">Search, filter, and explore events</p>
-            </div>
-          </div>
-          <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
-        </Link>
+            <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition-colors" />
+          </Link>
+
+          {(user?.role === 'organizer' || user?.role === 'admin') && (
+            <Link
+              to="/organizer"
+              className="flex items-center justify-between px-5 py-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-indigo-500/50 hover:bg-slate-800/60 transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                  <LayoutDashboard className="w-5 h-5 text-violet-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-100">Organizer Dashboard</p>
+                  <p className="text-xs text-slate-500">Manage your events and materials</p>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-violet-400 transition-colors" />
+            </Link>
+          )}
+        </div>
       </main>
     </div>
   )

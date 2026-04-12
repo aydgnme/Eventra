@@ -15,8 +15,10 @@ def create_app():
 
     from app.models import event, material, sponsor, notification  # noqa: F401
     from app.routes.events import events_bp
+    from app.routes.materials import materials_bp
 
     app.register_blueprint(events_bp, url_prefix='/events')
+    app.register_blueprint(materials_bp, url_prefix='/events')
 
     @app.route("/health")
     def health():
