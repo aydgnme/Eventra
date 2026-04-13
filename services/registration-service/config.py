@@ -8,6 +8,7 @@ class Config:
         "DATABASE_URL", "sqlite:///registration.db"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    EVENT_SERVICE_URL = os.getenv("EVENT_SERVICE_URL", "http://localhost:5002")
 
 
 class DevelopmentConfig(Config):
