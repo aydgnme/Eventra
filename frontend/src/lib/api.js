@@ -36,6 +36,24 @@ export const authApi = {
     }),
 }
 
+export const eventsApi = {
+  list: (params = {}) => {
+    const qs = new URLSearchParams(params).toString()
+    return request(`/events/${qs ? '?' + qs : ''}`)
+  },
+}
+
+export const registrationsApi = {
+  my: () => request('/registrations/my'),
+  register: (event_id) =>
+    request('/registrations/', {
+      method: 'POST',
+      body: JSON.stringify({ event_id }),
+    }),
+  cancel: (registration_id) =>
+    request(`/registrations/${registration_id}/cancel`, { method: 'POST' }),
+}
+
 export function getOAuthGoogleUrl() {
   const base = import.meta.env.VITE_OAUTH_BASE ?? 'http://localhost:5051'
   return `${base}/auth/oauth/google`
