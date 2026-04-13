@@ -89,11 +89,17 @@ services:
       - FLASK_ENV=development
       - DATABASE_URL=postgresql://eventra_user:eventra_pass@db:5432/eventra
       - JWT_SECRET_KEY=super-secret-key-change-in-prod
-      - SMTP_HOST=smtp.gmail.com
-      - SMTP_PORT=587
+      - EVENT_SERVICE_URL=http://event-service:5002
+      - MAIL_SERVER=${MAIL_SERVER:-}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER:-noreply@eventra.app}
     depends_on:
       db:
         condition: service_healthy
+      event-service:
+        condition: service_started
 
   # ── ADMIN SERVICE ─────────────────────────
   admin-service:
