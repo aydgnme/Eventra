@@ -1,9 +1,10 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 
 from app import db
 from app.models.user import User
-from app.utils.helpers import is_valid_email
+
+from app.utils.helpers import is_valid_email, is_student_email
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -23,11 +24,20 @@ def register():
     if not email or not password or not full_name:
         return jsonify({"error": "email, password and full_name are required"}), 400
 
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+
     if not is_valid_email(email):
         return jsonify({"error": "Invalid email format"}), 400
 
-    if role not in ["student", "organizer", "admin"]:
+    if role not in ["student", "organizer"]:
         return jsonify({"error": "Invalid role"}), 400
+
+    if is_student_email(email) and role != "student":
+        return jsonify({"error": "University emails can only register as student"}), 400
+
+    if not is_student_email(email) and role == "student":
+        return jsonify({"error": "Student role requires a @student.usv.ro email"}), 400
 
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Email already registered"}), 409
@@ -66,17 +76,22 @@ def login():
         additional_claims={"role": user.role, "email": user.email},
     )
 
-    return jsonify({
-        "access_token": access_token,
-        "user": user.to_dict(),
-    }), 200
+    return (
+        jsonify(
+            {
+                "access_token": access_token,
+                "user": user.to_dict(),
+            }
+        ),
+        200,
+    )
 
 
 @auth_bp.route("/me", methods=["GET"])
 @jwt_required()
 def me():
     user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    user = db.session.get(User, int(user_id))
 
     if not user:
         return jsonify({"error": "User not found"}), 404

@@ -10,6 +10,15 @@ class Config:
     ADMIN_SERVICE_URL = os.getenv("ADMIN_SERVICE_URL", "http://localhost:5004")
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:5055").split(",")
 
+    # Rate limiting
+    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
+    RATELIMIT_DEFAULT = "200 per minute"
+    RATELIMIT_AUTH_LOGIN = "10 per minute"
+    RATELIMIT_AUTH_REGISTER = "5 per minute"
+
+    # Cloudflare: in production only allow traffic that passed through CF
+    CLOUDFLARE_ONLY = False
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
@@ -17,6 +26,8 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
+    CLOUDFLARE_ONLY = os.getenv("CLOUDFLARE_ONLY", "true").lower() == "true"
+    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "redis://localhost:6379/0")
 
 
 config = {
