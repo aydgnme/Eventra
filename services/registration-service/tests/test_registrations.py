@@ -90,18 +90,61 @@ class TestCapacityCheck:
         resp = client.post("/registrations/", json={"event_id": 1}, headers=user_headers)
         assert resp.status_code == 201
 
-    def test_event_full_returns_409(self, client, user_headers, another_user_headers, app):
-        """Capacity=1: first user registers, second gets 409."""
+    def test_full_event_places_user_on_waitlist(
+        self, client, user_headers, another_user_headers, app
+    ):
+        """Capacity=1: first user registers (REGISTERED), second gets waitlisted (201 WAITLISTED)."""
         full_event = {**BASE_EVENT, "id": 5, "capacity": 1}
         with patch("app.routes.registrations.get_event", return_value=full_event):
             r1 = client.post("/registrations/", json={"event_id": 5}, headers=user_headers)
             assert r1.status_code == 201
+            assert r1.get_json()["registration"]["status"] == "registered"
             r2 = client.post("/registrations/", json={"event_id": 5}, headers=another_user_headers)
-            assert r2.status_code == 409
-            error = r2.get_json()
-            assert "full" in error["error"].lower()
-            assert "capacity" in error
-            assert "registered" in error
+            assert r2.status_code == 201
+            assert r2.get_json()["registration"]["status"] == "waitlisted"
+
+    def test_cancel_promotes_first_waitlisted_user(
+        self, client, user_headers, another_user_headers, app
+    ):
+        """user1 registers, user2 waitlisted, user1 cancels → user2 becomes REGISTERED."""
+        full_event = {**BASE_EVENT, "id": 20, "capacity": 1}
+        with patch("app.routes.registrations.get_event", return_value=full_event):
+            r1 = client.post("/registrations/", json={"event_id": 20}, headers=user_headers)
+            reg1_id = r1.get_json()["registration"]["id"]
+            r2 = client.post("/registrations/", json={"event_id": 20}, headers=another_user_headers)
+            reg2_id = r2.get_json()["registration"]["id"]
+            assert r2.get_json()["registration"]["status"] == "waitlisted"
+            client.post(f"/registrations/{reg1_id}/cancel", headers=user_headers)
+            promoted = client.get(f"/registrations/{reg2_id}", headers=another_user_headers)
+            assert promoted.get_json()["registration"]["status"] == "registered"
+
+    def test_waitlist_is_fifo(
+        self, client, user_headers, another_user_headers, organizer_headers, app
+    ):
+        """user1 registers, user2+user3 join waitlist in order — user1 cancels → only user2 promoted."""
+        full_event = {**BASE_EVENT, "id": 21, "capacity": 1}
+        with patch("app.routes.registrations.get_event", return_value=full_event):
+            r1 = client.post("/registrations/", json={"event_id": 21}, headers=user_headers)
+            reg1_id = r1.get_json()["registration"]["id"]
+            r2 = client.post("/registrations/", json={"event_id": 21}, headers=another_user_headers)
+            reg2_id = r2.get_json()["registration"]["id"]
+            r3 = client.post("/registrations/", json={"event_id": 21}, headers=organizer_headers)
+            reg3_id = r3.get_json()["registration"]["id"]
+            client.post(f"/registrations/{reg1_id}/cancel", headers=user_headers)
+            promoted = client.get(f"/registrations/{reg2_id}", headers=another_user_headers)
+            assert promoted.get_json()["registration"]["status"] == "registered"
+            still_waiting = client.get(f"/registrations/{reg3_id}", headers=organizer_headers)
+            assert still_waiting.get_json()["registration"]["status"] == "waitlisted"
+
+    def test_cancel_with_no_waitlist_just_cancels(self, client, user_headers, app):
+        """Cancelling when no waitlist entries exist simply cancels — no errors."""
+        event = {**BASE_EVENT, "id": 22, "capacity": 5}
+        with patch("app.routes.registrations.get_event", return_value=event):
+            r1 = client.post("/registrations/", json={"event_id": 22}, headers=user_headers)
+            reg_id = r1.get_json()["registration"]["id"]
+            cancel_resp = client.post(f"/registrations/{reg_id}/cancel", headers=user_headers)
+            assert cancel_resp.status_code == 200
+            assert cancel_resp.get_json()["registration"]["status"] == "cancelled"
 
     def test_unlimited_event_always_accepts(self, client, user_headers, mock_unlimited_event):
         resp = client.post(
