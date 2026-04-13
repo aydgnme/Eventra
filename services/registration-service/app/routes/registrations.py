@@ -5,6 +5,12 @@ from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 
 from app import db
 from app.models.registration import Registration, RegistrationStatus
+from app.utils.email_client import (
+    send_cancellation_email,
+    send_promotion_email,
+    send_registration_email,
+    send_waitlist_email,
+)
 from app.utils.event_client import EventNotFound, EventServiceUnavailable, get_event
 
 registrations_bp = Blueprint("registrations", __name__)
@@ -35,6 +41,7 @@ def _registered_count(event_id: int) -> int:
 @jwt_required()
 def register_for_event():
     user_id = int(get_jwt_identity())
+    user_email = get_jwt().get("email", "")
     data = request.get_json()
 
     if data is None:
@@ -77,10 +84,22 @@ def register_for_event():
         reg.status = RegistrationStatus.REGISTERED
         message = "Registered successfully"
 
+    reg.user_email = user_email
     reg.cancelled_at = None
     reg.registered_at = datetime.now(timezone.utc)
 
     db.session.commit()
+
+    # Fire-and-forget email (failures must never block registration)
+    try:
+        if user_email:
+            event_title = event.get("title", f"Event #{event_id}")
+            if reg.status == RegistrationStatus.WAITLISTED:
+                send_waitlist_email(user_email, event_title)
+            else:
+                send_registration_email(user_email, event_title)
+    except Exception:
+        pass
 
     return jsonify({
         "message": message,
@@ -188,9 +207,12 @@ def cancel_registration(registration_id):
         return jsonify({"error": "Already cancelled"}), 400
 
     was_registered = reg.status == RegistrationStatus.REGISTERED
+    event_title = f"Event #{reg.event_id}"
 
     reg.status = RegistrationStatus.CANCELLED
     reg.cancelled_at = datetime.now(timezone.utc)
+
+    promoted_email = None
 
     # Auto-promote oldest waitlisted user (FIFO) when a confirmed spot opens
     if was_registered:
@@ -202,8 +224,19 @@ def cancel_registration(registration_id):
         )
         if next_in_line:
             next_in_line.status = RegistrationStatus.REGISTERED
+            promoted_email = next_in_line.user_email
 
     db.session.commit()
+
+    # Fire-and-forget emails
+    try:
+        canceller_email = claims.get("email", "")
+        if canceller_email:
+            send_cancellation_email(canceller_email, event_title)
+        if promoted_email:
+            send_promotion_email(promoted_email, event_title)
+    except Exception:
+        pass
 
     return jsonify({
         "message": "Registration cancelled",
