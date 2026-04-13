@@ -37,7 +37,7 @@ def register_for_event():
     user_id = int(get_jwt_identity())
     data = request.get_json()
 
-    if not data:
+    if data is None:
         return jsonify({"error": "No data provided"}), 400
 
     event_id = data.get("event_id")
@@ -56,37 +56,34 @@ def register_for_event():
     existing = Registration.query.filter_by(
         user_id=user_id, event_id=event_id
     ).first()
+    if existing and existing.status != RegistrationStatus.CANCELLED:
+        return jsonify({"error": "Already registered for this event"}), 409
+
+    # Capacity check (before any session.add to avoid autoflush skewing the count)
+    capacity = event.get("capacity")
+    is_full = capacity is not None and _registered_count(event_id) >= capacity
+
+    # Create or reuse cancelled registration row
     if existing:
-        if existing.status != RegistrationStatus.CANCELLED:
-            return jsonify({"error": "Already registered for this event"}), 409
-        # Re-registration after cancel: reuse the row
         reg = existing
     else:
         reg = Registration(user_id=user_id, event_id=event_id)
         db.session.add(reg)
 
-    # Capacity check
-    capacity = event.get("capacity")
-    if capacity:
-        taken = _registered_count(event_id)
-        # Exclude the current row if it's a re-registration
-        if existing and existing.status == RegistrationStatus.CANCELLED:
-            taken = taken  # cancelled row is not counted, no adjustment needed
-        if taken >= capacity:
-            return jsonify({
-                "error": "Event is full",
-                "capacity": capacity,
-                "registered": taken,
-            }), 409
+    if is_full:
+        reg.status = RegistrationStatus.WAITLISTED
+        message = "Event is full. Added to waitlist."
+    else:
+        reg.status = RegistrationStatus.REGISTERED
+        message = "Registered successfully"
 
-    reg.status = RegistrationStatus.REGISTERED
     reg.cancelled_at = None
     reg.registered_at = datetime.now(timezone.utc)
 
     db.session.commit()
 
     return jsonify({
-        "message": "Registered successfully",
+        "message": message,
         "registration": reg.to_dict(),
     }), 201
 
@@ -190,8 +187,22 @@ def cancel_registration(registration_id):
     if reg.status == RegistrationStatus.CANCELLED:
         return jsonify({"error": "Already cancelled"}), 400
 
+    was_registered = reg.status == RegistrationStatus.REGISTERED
+
     reg.status = RegistrationStatus.CANCELLED
     reg.cancelled_at = datetime.now(timezone.utc)
+
+    # Auto-promote oldest waitlisted user (FIFO) when a confirmed spot opens
+    if was_registered:
+        next_in_line = (
+            Registration.query
+            .filter_by(event_id=reg.event_id, status=RegistrationStatus.WAITLISTED)
+            .order_by(Registration.registered_at.asc())
+            .first()
+        )
+        if next_in_line:
+            next_in_line.status = RegistrationStatus.REGISTERED
+
     db.session.commit()
 
     return jsonify({
