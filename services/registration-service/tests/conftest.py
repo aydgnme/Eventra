@@ -67,6 +67,13 @@ def client(app):
 
 
 @pytest.fixture(autouse=True)
+def mock_smtp(app):
+    """Prevent real SMTP connections in all tests."""
+    with patch("app.utils.email_client._send") as m:
+        yield m
+
+
+@pytest.fixture(autouse=True)
 def clean_db(app):
     with app.app_context():
         for table in reversed(_db.metadata.sorted_tables):
@@ -122,7 +129,7 @@ def mock_event_service_down(app):
 def user_token(app):
     with app.app_context():
         return create_access_token(
-            identity="1", additional_claims={"role": "student"}
+            identity="1", additional_claims={"role": "student", "email": "user@test.com"}
         )
 
 
@@ -130,7 +137,7 @@ def user_token(app):
 def another_user_token(app):
     with app.app_context():
         return create_access_token(
-            identity="2", additional_claims={"role": "student"}
+            identity="2", additional_claims={"role": "student", "email": "another@test.com"}
         )
 
 
@@ -138,7 +145,7 @@ def another_user_token(app):
 def organizer_token(app):
     with app.app_context():
         return create_access_token(
-            identity="10", additional_claims={"role": "organizer"}
+            identity="10", additional_claims={"role": "organizer", "email": "organizer@test.com"}
         )
 
 
@@ -146,7 +153,7 @@ def organizer_token(app):
 def admin_token(app):
     with app.app_context():
         return create_access_token(
-            identity="99", additional_claims={"role": "admin"}
+            identity="99", additional_claims={"role": "admin", "email": "admin@test.com"}
         )
 
 

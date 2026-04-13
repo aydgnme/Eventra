@@ -90,11 +90,8 @@ services:
       - DATABASE_URL=postgresql://eventra_user:eventra_pass@db:5432/eventra
       - JWT_SECRET_KEY=super-secret-key-change-in-prod
       - EVENT_SERVICE_URL=http://event-service:5002
-      - MAIL_SERVER=${MAIL_SERVER:-}
-      - MAIL_PORT=${MAIL_PORT:-587}
-      - MAIL_USERNAME=${MAIL_USERNAME:-}
-      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
-      - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER:-noreply@eventra.app}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - MAIL_FROM=${MAIL_FROM:-Eventra <noreply@eventra.app>}
     depends_on:
       db:
         condition: service_healthy
@@ -127,7 +124,8 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:5050
+      - VITE_API_TARGET=http://gateway:5000
+      - VITE_OAUTH_BASE=http://localhost:5050
     depends_on:
       - gateway
 

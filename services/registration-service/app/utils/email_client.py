@@ -1,42 +1,33 @@
 """
-SMTP email utility for registration notifications.
+Email utility using the Resend API.
 All public functions are fire-and-forget: failures are logged, never raised.
+Set RESEND_API_KEY and MAIL_FROM env vars to enable sending.
 """
 import logging
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 from flask import current_app
 
 logger = logging.getLogger(__name__)
 
 
-def _send(to_email: str, subject: str, body_html: str) -> None:
-    cfg = current_app.config
-    host = cfg.get("MAIL_SERVER", "")
-    if not host:
-        logger.debug("MAIL_SERVER not configured — skipping email to %s", to_email)
+def _send(to_email: str, subject: str, html: str) -> None:
+    api_key = current_app.config.get("RESEND_API_KEY", "")
+    if not api_key:
+        logger.debug("RESEND_API_KEY not set — skipping email to %s", to_email)
         return
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = cfg.get("MAIL_DEFAULT_SENDER", "noreply@eventra.app")
-    msg["To"] = to_email
-    msg.attach(MIMEText(body_html, "html"))
+    import resend
 
-    port = int(cfg.get("MAIL_PORT", 587))
-    username = cfg.get("MAIL_USERNAME", "")
-    password = cfg.get("MAIL_PASSWORD", "")
-    use_tls = cfg.get("MAIL_USE_TLS", True)
+    resend.api_key = api_key
+    from_addr = current_app.config.get("MAIL_FROM", "Eventra <noreply@eventra.app>")
 
     try:
-        with smtplib.SMTP(host, port, timeout=10) as server:
-            if use_tls:
-                server.starttls()
-            if username and password:
-                server.login(username, password)
-            server.sendmail(msg["From"], [to_email], msg.as_string())
+        resend.Emails.send({
+            "from": from_addr,
+            "to": [to_email],
+            "subject": subject,
+            "html": html,
+        })
         logger.info("Email sent to %s: %s", to_email, subject)
     except Exception as exc:
         logger.warning("Failed to send email to %s: %s", to_email, exc)
