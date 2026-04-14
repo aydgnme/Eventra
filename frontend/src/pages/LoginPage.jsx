@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { Eye, EyeOff, Calendar, ArrowRight, Loader2, AlertCircle, X } from 'lucide-react'
+import { Eye, EyeOff, Calendar, ArrowRight, Loader2, AlertCircle, X, Sun, Moon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import { getOAuthGoogleUrl } from '../lib/api'
 
 export default function LoginPage() {
   const { login } = useAuth()
+  const { theme, toggle } = useTheme()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -40,7 +42,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-slate-950">
+    <div className="min-h-screen flex bg-bg">
+      {/* Theme toggle */}
+      <button
+        onClick={toggle}
+        className="fixed top-4 right-4 z-20 p-2 rounded-lg bg-surface border border-border text-fg-2 hover:text-fg transition-colors shadow-sm"
+        aria-label="Toggle theme"
+      >
+        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+      </button>
+
       {/* ── OAuth error modal ── */}
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -48,10 +59,10 @@ export default function LoginPage() {
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setModal(null)}
           />
-          <div className="relative w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl">
+          <div className="relative w-full max-w-sm bg-surface border border-border rounded-2xl p-6 shadow-2xl">
             <button
               onClick={() => setModal(null)}
-              className="absolute top-4 right-4 text-slate-500 hover:text-slate-300 transition-colors"
+              className="absolute top-4 right-4 text-fg-3 hover:text-fg-2 transition-colors"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
@@ -59,16 +70,16 @@ export default function LoginPage() {
 
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
-                <AlertCircle className="w-5 h-5 text-red-400" />
+                <AlertCircle className="w-5 h-5 text-red-500" />
               </div>
-              <h3 className="font-semibold text-white">Sign-in failed</h3>
+              <h3 className="font-semibold text-fg">Sign-in failed</h3>
             </div>
 
-            <p className="text-slate-400 text-sm leading-relaxed mb-6">{modal}</p>
+            <p className="text-fg-2 text-sm leading-relaxed mb-6">{modal}</p>
 
             <button
               onClick={() => setModal(null)}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition-colors"
+              className="w-full px-4 py-2.5 rounded-xl bg-surface-alt hover:bg-border text-fg text-sm font-medium transition-colors"
             >
               Got it
             </button>
@@ -137,16 +148,16 @@ export default function LoginPage() {
             <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
               <Calendar className="w-4 h-4 text-white" />
             </div>
-            <span className="text-white font-semibold text-lg">Eventra</span>
+            <span className="text-fg font-semibold text-lg">Eventra</span>
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-white">Welcome back</h2>
-            <p className="text-slate-400 text-sm">Sign in to your account to continue</p>
+            <h2 className="text-2xl font-bold text-fg">Welcome back</h2>
+            <p className="text-fg-2 text-sm">Sign in to your account to continue</p>
           </div>
 
           {registered && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-sm">
               <span className="shrink-0">✓</span>
               Account created! You can now sign in.
             </div>
@@ -156,12 +167,12 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-slate-700 bg-slate-900 text-slate-200 text-sm font-medium hover:bg-slate-800 hover:border-slate-600 transition-all duration-200"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border bg-surface text-fg text-sm font-medium hover:bg-surface-alt transition-all duration-200"
           >
             <GoogleIcon />
             Continue with Google
           </button>
-          <p className="text-center text-xs text-slate-500">
+          <p className="text-center text-xs text-fg-3">
             USV students and official staff accounts can sign in with Google.
           </p>
 
@@ -170,7 +181,7 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label htmlFor="email" className="block text-sm font-medium text-slate-300">
+              <label htmlFor="email" className="block text-sm font-medium text-fg-2">
                 Email address
               </label>
               <input
@@ -182,19 +193,16 @@ export default function LoginPage() {
                 value={form.email}
                 onChange={handleChange}
                 placeholder="you@example.com"
-                className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200"
+                className={inputCls}
               />
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium text-slate-300">
+                <label htmlFor="password" className="block text-sm font-medium text-fg-2">
                   Password
                 </label>
-                <a
-                  href="#"
-                  className="text-xs text-[#92c6e6] hover:text-sky-300 transition-colors"
-                >
+                <a href="#" className="text-xs text-brand-500 hover:text-brand-400 transition-colors">
                   Forgot password?
                 </a>
               </div>
@@ -208,12 +216,12 @@ export default function LoginPage() {
                   value={form.password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="w-full px-4 py-3 pr-11 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200"
+                  className={`${inputCls} pr-11`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-fg-3 hover:text-fg-2 transition-colors"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -221,9 +229,8 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Form error inline */}
             {formError && (
-              <div className="flex items-center gap-2 text-red-400 text-sm">
+              <div className="flex items-center gap-2 text-red-500 text-sm">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 {formError}
               </div>
@@ -232,7 +239,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all duration-200 shadow-lg shadow-brand-500/20 hover:shadow-brand-400/30 group mt-2"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all duration-200 shadow-lg shadow-brand-500/20 group mt-2"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -245,9 +252,9 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-sm text-slate-500">
+          <p className="text-center text-sm text-fg-3">
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="text-[#92c6e6] hover:text-sky-300 font-medium transition-colors">
+            <Link to="/register" className="text-brand-500 hover:text-brand-400 font-medium transition-colors">
               Create one free
             </Link>
           </p>
@@ -257,12 +264,15 @@ export default function LoginPage() {
   )
 }
 
+const inputCls =
+  'w-full px-4 py-3 rounded-xl bg-surface border border-border text-fg placeholder-fg-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200'
+
 function Divider() {
   return (
     <div className="flex items-center gap-4">
-      <div className="flex-1 h-px bg-slate-800" />
-      <span className="text-xs text-slate-500 font-medium">or</span>
-      <div className="flex-1 h-px bg-slate-800" />
+      <div className="flex-1 h-px bg-border" />
+      <span className="text-xs text-fg-3 font-medium">or</span>
+      <div className="flex-1 h-px bg-border" />
     </div>
   )
 }

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Calendar, Clock, LogOut, MapPin, Users } from 'lucide-react'
+import { Calendar, Clock, LogOut, MapPin, Users, Sun, Moon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import { eventsApi, registrationsApi } from '../lib/api'
 
 const STATUS_BADGE = {
-  registered: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
-  waitlisted: 'bg-amber-500/20 text-amber-400 border border-amber-500/30',
+  registered: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25',
+  waitlisted: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25',
 }
 
 function formatDate(dt) {
@@ -18,12 +19,13 @@ function formatDate(dt) {
 
 export default function DashboardPage() {
   const { user, logout } = useAuth()
+  const { theme, toggle } = useTheme()
   const navigate = useNavigate()
 
   const [events, setEvents] = useState([])
-  const [myRegs, setMyRegs] = useState({})   // event_id → registration
+  const [myRegs, setMyRegs] = useState({})
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState({})        // registration_id → true while request in flight
+  const [busy, setBusy] = useState({})
 
   const load = useCallback(async () => {
     try {
@@ -80,31 +82,38 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-bg text-fg">
       {/* Header */}
-      <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-border bg-surface px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center">
             <Calendar className="w-4 h-4 text-white" />
           </div>
-          <span className="font-semibold text-lg">Eventra</span>
+          <span className="font-semibold text-lg text-fg">Eventra</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {['organizer', 'admin'].includes(user?.role) && (
             <button
               onClick={() => navigate('/organizer')}
-              className="text-sm text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+              className="text-sm text-brand-500 hover:text-brand-400 font-medium transition-colors"
             >
               My Events
             </button>
           )}
-          <span className="text-sm text-slate-400">
+          <span className="text-sm text-fg-2">
             {user?.full_name ?? user?.email}
-            <span className="ml-2 text-indigo-400 font-medium">{user?.role}</span>
+            <span className="ml-2 text-brand-500 font-medium">{user?.role}</span>
           </span>
           <button
+            onClick={toggle}
+            className="p-2 rounded-lg text-fg-2 hover:text-fg hover:bg-surface-alt transition-colors"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+            className="flex items-center gap-2 text-sm text-fg-2 hover:text-fg transition-colors"
           >
             <LogOut className="w-4 h-4" />
             Sign out
@@ -114,12 +123,12 @@ export default function DashboardPage() {
 
       {/* Main */}
       <main className="px-6 py-8 max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Upcoming Events</h1>
+        <h1 className="text-2xl font-bold mb-6 text-fg">Upcoming Events</h1>
 
         {loading ? (
-          <div className="text-slate-500 text-sm">Loading events…</div>
+          <div className="text-fg-3 text-sm">Loading events…</div>
         ) : events.length === 0 ? (
-          <div className="text-slate-500 text-sm">No published events yet.</div>
+          <div className="text-fg-3 text-sm">No published events yet.</div>
         ) : (
           <div className="flex flex-col gap-4">
             {events.map((event) => {
@@ -129,14 +138,14 @@ export default function DashboardPage() {
               return (
                 <div
                   key={event.id}
-                  className="rounded-xl border border-slate-800 bg-slate-900 p-5 flex flex-col gap-3"
+                  className="rounded-xl border border-border bg-surface p-5 flex flex-col gap-3"
                 >
                   {/* Top row */}
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h2 className="font-semibold text-lg leading-snug">{event.title}</h2>
+                      <h2 className="font-semibold text-lg leading-snug text-fg">{event.title}</h2>
                       {event.description && (
-                        <p className="text-slate-400 text-sm mt-1 line-clamp-2">{event.description}</p>
+                        <p className="text-fg-2 text-sm mt-1 line-clamp-2">{event.description}</p>
                       )}
                     </div>
                     {reg && (
@@ -147,7 +156,7 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Meta */}
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-fg-3">
                     {event.start_datetime && (
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
@@ -177,7 +186,7 @@ export default function DashboardPage() {
                       <button
                         onClick={() => handleCancel(event.id, reg.id)}
                         disabled={isBusy}
-                        className="text-sm px-4 py-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+                        className="text-sm px-4 py-1.5 rounded-lg border border-red-500/40 text-red-500 hover:bg-red-500/10 disabled:opacity-50 transition-colors"
                       >
                         {isBusy ? 'Cancelling…' : 'Cancel Registration'}
                       </button>
@@ -185,7 +194,7 @@ export default function DashboardPage() {
                       <button
                         onClick={() => handleRegister(event.id)}
                         disabled={isBusy}
-                        className="text-sm px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium transition-colors"
+                        className="text-sm px-4 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-white font-medium transition-colors"
                       >
                         {isBusy ? 'Registering…' : 'Register'}
                       </button>
