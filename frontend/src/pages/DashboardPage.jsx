@@ -90,6 +90,14 @@ export default function DashboardPage() {
           <span className="font-semibold text-lg">Eventra</span>
         </div>
         <div className="flex items-center gap-4">
+          {['organizer', 'admin'].includes(user?.role) && (
+            <button
+              onClick={() => navigate('/organizer')}
+              className="text-sm text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+            >
+              My Events
+            </button>
+          )}
           <span className="text-sm text-slate-400">
             {user?.full_name ?? user?.email}
             <span className="ml-2 text-indigo-400 font-medium">{user?.role}</span>

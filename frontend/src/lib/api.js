@@ -41,6 +41,14 @@ export const eventsApi = {
     const qs = new URLSearchParams(params).toString()
     return request(`/events/${qs ? '?' + qs : ''}`)
   },
+  mine: () => request('/events/mine'),
+  get: (id) => request(`/events/${id}`),
+  create: (data) =>
+    request('/events/', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) =>
+    request(`/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (id) =>
+    request(`/events/${id}`, { method: 'DELETE' }),
 }
 
 export const registrationsApi = {
