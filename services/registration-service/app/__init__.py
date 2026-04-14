@@ -14,8 +14,10 @@ def create_app():
     jwt.init_app(app)
 
     from app.routes.registrations import registrations_bp
+    from app.routes.feedback import feedback_bp
 
     app.register_blueprint(registrations_bp, url_prefix='/registrations')
+    app.register_blueprint(feedback_bp, url_prefix='/feedback')
 
     @app.route("/health")
     def health():
