@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Calendar, LogOut, Pencil, Plus, Trash2, X, Loader2, AlertCircle } from 'lucide-react'
+import { Calendar, LogOut, Pencil, Plus, Trash2, X, Loader2, AlertCircle, Sun, Moon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import { eventsApi } from '../lib/api'
 
 const CATEGORIES = ['academic', 'sport', 'career', 'volunteer', 'cultural']
@@ -29,16 +30,17 @@ function formatDate(dt) {
 
 export default function OrganizerDashboard() {
   const { user, logout } = useAuth()
+  const { theme, toggle } = useTheme()
   const navigate = useNavigate()
 
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState(null)   // event object being edited
+  const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
-  const [deleteId, setDeleteId] = useState(null)  // confirm dialog
+  const [deleteId, setDeleteId] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -130,29 +132,34 @@ export default function OrganizerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-bg text-fg">
       {/* Header */}
-      <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-border bg-menu px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center shadow-sm">
             <Calendar className="w-4 h-4 text-white" />
           </div>
-          <span className="font-semibold text-lg">Eventra</span>
-          <span className="text-slate-500 text-sm ml-1">/ Organizer</span>
+          <span className="font-semibold text-lg text-white tracking-tight">Eventra</span>
+          <span className="text-white/40 text-sm ml-1">/ Organizer</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/dashboard')}
-            className="text-sm text-slate-400 hover:text-slate-200 transition-colors"
+            className="text-sm text-usv-blue hover:text-white transition-colors"
           >
             All Events
           </button>
-          <span className="text-sm text-slate-400">
-            {user?.full_name ?? user?.email}
-          </span>
+          <span className="text-sm text-white/70">{user?.full_name ?? user?.email}</span>
+          <button
+            onClick={toggle}
+            className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+            className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"
           >
             <LogOut className="w-4 h-4" />
             Sign out
@@ -163,10 +170,10 @@ export default function OrganizerDashboard() {
       {/* Main */}
       <main className="px-6 py-8 max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">My Events</h1>
+          <h1 className="text-2xl font-bold text-fg">My Events</h1>
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-400 text-white text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
             New Event
@@ -174,9 +181,9 @@ export default function OrganizerDashboard() {
         </div>
 
         {loading ? (
-          <div className="text-slate-500 text-sm">Loading…</div>
+          <div className="text-fg-3 text-sm">Loading…</div>
         ) : events.length === 0 ? (
-          <div className="text-center py-20 text-slate-500">
+          <div className="text-center py-20 text-fg-3">
             <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p>No events yet. Create your first one!</p>
           </div>
@@ -185,20 +192,20 @@ export default function OrganizerDashboard() {
             {events.map((event) => (
               <div
                 key={event.id}
-                className="rounded-xl border border-slate-800 bg-slate-900 px-5 py-4 flex items-start justify-between gap-4"
+                className="rounded-xl border border-border bg-surface px-5 py-4 flex items-start justify-between gap-4 shadow-sm"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h2 className="font-semibold truncate">{event.title}</h2>
+                    <h2 className="font-semibold text-fg truncate">{event.title}</h2>
                     <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
                       event.is_published
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-slate-700 text-slate-400'
+                        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                        : 'bg-surface-alt text-fg-2 border border-border'
                     }`}>
                       {event.is_published ? 'Published' : 'Draft'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-fg-3">
                     {formatDate(event.start_datetime)}
                     {event.location ? ` · ${event.location}` : ''}
                     {event.capacity ? ` · ${event.capacity} spots` : ''}
@@ -208,14 +215,14 @@ export default function OrganizerDashboard() {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => openEdit(event)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                    className="p-2 rounded-lg text-fg-2 hover:text-fg hover:bg-surface-alt transition-colors"
                     title="Edit"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setDeleteId(event.id)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    className="p-2 rounded-lg text-fg-2 hover:text-red-500 hover:bg-red-500/10 transition-colors"
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -230,35 +237,26 @@ export default function OrganizerDashboard() {
       {/* ── Event Form Modal ── */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={closeForm} />
-          <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-              <h2 className="font-semibold text-lg">{editing ? 'Edit Event' : 'New Event'}</h2>
-              <button onClick={closeForm} className="text-slate-500 hover:text-slate-300 transition-colors">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeForm} />
+          <div className="relative w-full max-w-lg bg-surface border border-border rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="font-semibold text-lg text-fg">{editing ? 'Edit Event' : 'New Event'}</h2>
+              <button onClick={closeForm} className="text-fg-3 hover:text-fg-2 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Title */}
               <Field label="Title *">
-                <input
-                  name="title" required value={form.title} onChange={handleChange}
-                  placeholder="Event title"
-                  className={inputCls}
-                />
+                <input name="title" required value={form.title} onChange={handleChange}
+                  placeholder="Event title" className={inputCls} />
               </Field>
 
-              {/* Description */}
               <Field label="Description">
-                <textarea
-                  name="description" rows={3} value={form.description} onChange={handleChange}
-                  placeholder="What is this event about?"
-                  className={inputCls}
-                />
+                <textarea name="description" rows={3} value={form.description} onChange={handleChange}
+                  placeholder="What is this event about?" className={inputCls} />
               </Field>
 
-              {/* Category + Mode */}
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Category *">
                   <select name="category" value={form.category} onChange={handleChange} className={inputCls}>
@@ -276,64 +274,48 @@ export default function OrganizerDashboard() {
                 </Field>
               </div>
 
-              {/* Location + Capacity */}
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Location">
-                  <input
-                    name="location" value={form.location} onChange={handleChange}
-                    placeholder="Room / building / URL"
-                    className={inputCls}
-                  />
+                  <input name="location" value={form.location} onChange={handleChange}
+                    placeholder="Room / building / URL" className={inputCls} />
                 </Field>
                 <Field label="Capacity">
-                  <input
-                    name="capacity" type="number" min="1" value={form.capacity} onChange={handleChange}
-                    placeholder="Unlimited"
-                    className={inputCls}
-                  />
+                  <input name="capacity" type="number" min="1" value={form.capacity} onChange={handleChange}
+                    placeholder="Unlimited" className={inputCls} />
                 </Field>
               </div>
 
-              {/* Dates */}
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Start *">
-                  <input
-                    name="start_datetime" type="datetime-local" required value={form.start_datetime} onChange={handleChange}
-                    className={inputCls}
-                  />
+                  <input name="start_datetime" type="datetime-local" required value={form.start_datetime}
+                    onChange={handleChange} className={inputCls} />
                 </Field>
                 <Field label="End *">
-                  <input
-                    name="end_datetime" type="datetime-local" required value={form.end_datetime} onChange={handleChange}
-                    className={inputCls}
-                  />
+                  <input name="end_datetime" type="datetime-local" required value={form.end_datetime}
+                    onChange={handleChange} className={inputCls} />
                 </Field>
               </div>
 
-              {/* Publish */}
               <label className="flex items-center gap-3 cursor-pointer select-none">
-                <input
-                  type="checkbox" name="is_published" checked={form.is_published} onChange={handleChange}
-                  className="w-4 h-4 accent-indigo-500"
-                />
-                <span className="text-sm text-slate-300">Publish immediately</span>
+                <input type="checkbox" name="is_published" checked={form.is_published}
+                  onChange={handleChange} className="w-4 h-4 accent-brand-500" />
+                <span className="text-sm text-fg-2">Publish immediately</span>
               </label>
 
               {formError && (
-                <div className="flex items-center gap-2 text-red-400 text-sm">
+                <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   {formError}
                 </div>
               )}
 
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={closeForm} className="px-4 py-2 text-sm rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+                <button type="button" onClick={closeForm}
+                  className="px-4 py-2 text-sm rounded-lg text-fg-2 hover:text-fg hover:bg-surface-alt transition-colors">
                   Cancel
                 </button>
-                <button
-                  type="submit" disabled={saving}
-                  className="flex items-center gap-2 px-5 py-2 text-sm rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium transition-colors"
-                >
+                <button type="submit" disabled={saving}
+                  className="flex items-center gap-2 px-5 py-2 text-sm rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-white font-medium transition-colors">
                   {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   {editing ? 'Save Changes' : 'Create Event'}
                 </button>
@@ -346,18 +328,17 @@ export default function OrganizerDashboard() {
       {/* ── Delete Confirm ── */}
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setDeleteId(null)} />
-          <div className="relative w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl">
-            <h3 className="font-semibold text-lg mb-2">Delete Event?</h3>
-            <p className="text-slate-400 text-sm mb-6">This action cannot be undone.</p>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteId(null)} />
+          <div className="relative w-full max-w-sm bg-surface border border-border rounded-2xl p-6 shadow-2xl">
+            <h3 className="font-semibold text-lg mb-2 text-fg">Delete Event?</h3>
+            <p className="text-fg-2 text-sm mb-6">This action cannot be undone.</p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setDeleteId(null)} className="px-4 py-2 text-sm rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+              <button onClick={() => setDeleteId(null)}
+                className="px-4 py-2 text-sm rounded-lg text-fg-2 hover:text-fg hover:bg-surface-alt transition-colors">
                 Cancel
               </button>
-              <button
-                onClick={() => handleDelete(deleteId)}
-                className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium transition-colors"
-              >
+              <button onClick={() => handleDelete(deleteId)}
+                className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium transition-colors">
                 Delete
               </button>
             </div>
@@ -368,12 +349,12 @@ export default function OrganizerDashboard() {
   )
 }
 
-const inputCls = 'w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all'
+const inputCls = 'w-full px-3 py-2 rounded-lg bg-surface-alt border border-border text-fg placeholder-fg-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all'
 
 function Field({ label, children }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide">{label}</label>
+      <label className="block text-xs font-medium text-fg-2 uppercase tracking-wide">{label}</label>
       {children}
     </div>
   )
