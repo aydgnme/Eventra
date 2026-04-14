@@ -1,49 +1,15 @@
 @import "tailwindcss";
 
-/* Enable class-based dark mode variant */
-@custom-variant dark (&:where(.dark, .dark *));
-
-/* ── Light theme (default) ── */
-:root {
-  --bg: #f5f5f7;
-  --surface: #ffffff;
-  --surface-alt: #f2f2f7;
-  --border: #d2d2d7;
-  --fg: #1d1d1f;
-  --fg-2: #6e6e73;
-  --fg-3: #aeaeb2;
-}
-
-/* ── Dark theme ── */
-html.dark {
-  --bg: #0a0a0b;
-  --surface: #1c1c1e;
-  --surface-alt: #2c2c2e;
-  --border: #3a3a3c;
-  --fg: #f5f5f7;
-  --fg-2: #aeaeb2;
-  --fg-3: #636366;
-}
-
-@theme inline {
+@theme {
   --font-sans: 'Inter', system-ui, sans-serif;
 
-  /* Brand: USV Burgundy/Maroon */
+  /* Brand: USV-inspired Burgundy/Maroon */
   --color-brand-50: #fef2f3;
   --color-brand-100: #fde6e8;
   --color-brand-400: #c94354;
   --color-brand-500: #a22531;
   --color-brand-600: #8a1e2a;
   --color-brand-700: #6f1822;
-
-  /* Semantic (dynamic — resolve at runtime via CSS vars) */
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-surface-alt: var(--surface-alt);
-  --color-border: var(--border);
-  --color-fg: var(--fg);
-  --color-fg-2: var(--fg-2);
-  --color-fg-3: var(--fg-3);
 }
 
 * {
