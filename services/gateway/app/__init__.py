@@ -99,6 +99,7 @@ def create_app(config_name: str = None) -> Flask:
         "/auth": auth_url,
         "/events": app.config["EVENT_SERVICE_URL"],
         "/registrations": app.config["REGISTRATION_SERVICE_URL"],
+        "/feedback": app.config["REGISTRATION_SERVICE_URL"],
         "/admin": app.config["ADMIN_SERVICE_URL"],
     }
 

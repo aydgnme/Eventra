@@ -21,6 +21,7 @@ class Registration(db.Model):
         nullable=False,
         default=RegistrationStatus.REGISTERED,
     )
+    user_email = db.Column(db.String(255), nullable=True)
     registered_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc)
     )

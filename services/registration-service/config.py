@@ -8,6 +8,9 @@ class Config:
         "DATABASE_URL", "sqlite:///registration.db"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    EVENT_SERVICE_URL = os.getenv("EVENT_SERVICE_URL", "http://localhost:5002")
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+    MAIL_FROM = os.getenv("MAIL_FROM", "Eventra <noreply@eventra.app>")
 
 
 class DevelopmentConfig(Config):
