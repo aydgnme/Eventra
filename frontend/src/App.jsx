@@ -21,6 +21,13 @@ import EditEventPage from './pages/EditEventPage'
 import ParticipantsPage from './pages/ParticipantsPage'
 import MaterialsPage from './pages/MaterialsPage'
 import UnauthorizedPage from './pages/UnauthorizedPage'
+import {
+  AdminDashboard,
+  AdminOverviewPage,
+  EventValidationPage,
+  UserManagementPage,
+  ReportsPage,
+} from './pages/admin'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -118,6 +125,21 @@ export default function App() {
                     </ProtectedRoute>
                   }
                 />
+
+                {/* Admin routes */}
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute roles={['admin']}>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<AdminOverviewPage />} />
+                  <Route path="validation" element={<EventValidationPage />} />
+                  <Route path="users" element={<UserManagementPage />} />
+                  <Route path="reports" element={<ReportsPage />} />
+                </Route>
 
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/events" replace />} />

@@ -3,6 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Calendar, LogOut, Menu, X, ChevronDown, Sun, Moon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import { useQuery } from '@tanstack/react-query'
+import adminService from '../services/adminService'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
@@ -11,6 +13,14 @@ export default function Navbar() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+
+  const { data: pendingData } = useQuery({
+    queryKey: ['admin', 'pending-events'],
+    queryFn: adminService.getPendingEvents,
+    enabled: user?.role === 'admin',
+    staleTime: 60_000,
+  })
+  const pendingCount = pendingData?.events?.length ?? 0
 
   function handleLogout() {
     logout()
@@ -52,13 +62,18 @@ export default function Navbar() {
             <Link
               key={link.to}
               to={link.to}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`relative px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive(link.to)
                   ? 'bg-white/10 text-white'
                   : 'text-white/60 hover:text-white hover:bg-white/8'
               }`}
             >
               {link.label}
+              {link.to === '/admin' && pendingCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {pendingCount > 99 ? '99+' : pendingCount}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
