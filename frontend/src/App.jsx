@@ -1,47 +1,132 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
+import { ToastProvider } from './context/ToastContext'
+import Toast from './components/Toast'
+import ProtectedRoute from './components/ProtectedRoute'
+
+// Pages — existing (do not modify)
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import OAuthCallbackPage from './pages/OAuthCallbackPage'
 import DashboardPage from './pages/DashboardPage'
 import OrganizerDashboard from './pages/OrganizerDashboard'
 
-function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth()
-  if (loading) return null
-  return user ? children : <Navigate to="/login" replace />
-}
+// Pages — new
+import EventListPage from './pages/EventListPage'
+import EventDetailPage from './pages/EventDetailPage'
+import CreateEventPage from './pages/CreateEventPage'
+import EditEventPage from './pages/EditEventPage'
+import ParticipantsPage from './pages/ParticipantsPage'
+import MaterialsPage from './pages/MaterialsPage'
+import UnauthorizedPage from './pages/UnauthorizedPage'
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 function PublicRoute({ children }) {
-  const { user, loading } = useAuth()
-  if (loading) return null
-  return user ? <Navigate to="/dashboard" replace /> : children
-}
-
-function OrganizerRoute({ children }) {
-  const { user, loading } = useAuth()
-  if (loading) return null
-  if (!user) return <Navigate to="/login" replace />
-  if (!['organizer', 'admin'].includes(user.role)) return <Navigate to="/dashboard" replace />
   return children
 }
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-            <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
-            <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
-            <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-            <Route path="/organizer" element={<OrganizerRoute><OrganizerDashboard /></OrganizerRoute>} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <BrowserRouter>
+              <Routes>
+                {/* Public auth routes */}
+                <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+                <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+                <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
+
+                {/* Unauthorized */}
+                <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+                {/* Student / general routes */}
+                <Route
+                  path="/events"
+                  element={
+                    <ProtectedRoute>
+                      <EventListPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/events/:id"
+                  element={
+                    <ProtectedRoute>
+                      <EventDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Organizer routes */}
+                <Route
+                  path="/organizer"
+                  element={
+                    <ProtectedRoute roles={['organizer', 'admin']}>
+                      <OrganizerDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/organizer/events/create"
+                  element={
+                    <ProtectedRoute roles={['organizer', 'admin']}>
+                      <CreateEventPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/organizer/events/:id/edit"
+                  element={
+                    <ProtectedRoute roles={['organizer', 'admin']}>
+                      <EditEventPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/organizer/events/:id/participants"
+                  element={
+                    <ProtectedRoute roles={['organizer', 'admin']}>
+                      <ParticipantsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/organizer/events/:id/materials"
+                  element={
+                    <ProtectedRoute roles={['organizer', 'admin']}>
+                      <MaterialsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/events" replace />} />
+              </Routes>
+              <Toast />
+            </BrowserRouter>
+          </ToastProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   )
 }

@@ -30,6 +30,18 @@ def get_event(event_id):
     return jsonify({"event": event.to_dict()}), 200
 
 
+@events_bp.route("/mine", methods=["GET"])
+@jwt_required()
+def my_events():
+    claims = get_jwt()
+    if claims.get("role") not in ("organizer", "admin"):
+        return jsonify({"error": "Organizers and admins only"}), 403
+
+    user_id = int(get_jwt_identity())
+    events = Event.query.filter_by(organizer_id=user_id).order_by(Event.id.desc()).all()
+    return jsonify({"events": [e.to_dict() for e in events]}), 200
+
+
 @events_bp.route("/", methods=["POST"])
 @jwt_required()
 def create_event():

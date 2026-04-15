@@ -37,6 +37,7 @@ class Registration(db.Model):
             "user_id": self.user_id,
             "event_id": self.event_id,
             "status": self.status.value,
+            "user_email": self.user_email,
             "registered_at": self.registered_at.isoformat(),
             "cancelled_at": self.cancelled_at.isoformat() if self.cancelled_at else None,
         }

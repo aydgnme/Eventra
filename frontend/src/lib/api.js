@@ -60,6 +60,10 @@ export const registrationsApi = {
     }),
   cancel: (registration_id) =>
     request(`/registrations/${registration_id}/cancel`, { method: 'POST' }),
+  eventRegistrations: (event_id) =>
+    request(`/registrations/event/${event_id}`),
+  eventCount: (event_id) =>
+    request(`/registrations/event/${event_id}/count`),
 }
 
 export function getOAuthGoogleUrl() {

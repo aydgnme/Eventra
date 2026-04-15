@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Calendar, Clock, LogOut, MapPin, Users, Sun, Moon } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Clock, MapPin, Users, CalendarCheck, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { useTheme } from '../context/ThemeContext'
-import { eventsApi, registrationsApi } from '../lib/api'
+import { registrationsApi } from '../lib/api'
+import Navbar from '../components/Navbar'
 
 const STATUS_BADGE = {
   registered: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25',
   waitlisted: 'bg-usv-gold/15 text-amber-700 dark:text-usv-gold border border-usv-gold/25',
+}
+
+const STATUS_LABEL = {
+  registered: 'Registered',
+  waitlisted: 'Waitlisted',
 }
 
 function formatDate(dt) {
@@ -18,29 +22,18 @@ function formatDate(dt) {
 }
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth()
-  const { theme, toggle } = useTheme()
-  const navigate = useNavigate()
+  const { user } = useAuth()
 
-  const [events, setEvents] = useState([])
-  const [myRegs, setMyRegs] = useState({})
+  const [regs, setRegs] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState({})
 
   const load = useCallback(async () => {
     try {
-      const [evData, regData] = await Promise.all([
-        eventsApi.list({ is_published: true }),
-        registrationsApi.my(),
-      ])
-      setEvents(evData.events ?? [])
-      const map = {}
-      for (const r of regData.registrations ?? []) {
-        if (r.status !== 'cancelled') map[r.event_id] = r
-      }
-      setMyRegs(map)
+      const data = await registrationsApi.my()
+      setRegs(data.registrations ?? [])
     } catch {
-      // silently ignore — user will see empty state
+      // silently ignore
     } finally {
       setLoading(false)
     }
@@ -48,166 +41,139 @@ export default function DashboardPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function handleRegister(eventId) {
-    setBusy((b) => ({ ...b, [eventId]: true }))
-    try {
-      const data = await registrationsApi.register(eventId)
-      setMyRegs((m) => ({ ...m, [eventId]: data.registration }))
-    } catch (e) {
-      alert(e.message)
-    } finally {
-      setBusy((b) => ({ ...b, [eventId]: false }))
-    }
-  }
-
-  async function handleCancel(eventId, regId) {
-    setBusy((b) => ({ ...b, [eventId]: true }))
+  async function handleCancel(regId) {
+    setBusy((b) => ({ ...b, [regId]: true }))
     try {
       await registrationsApi.cancel(regId)
-      setMyRegs((m) => {
-        const next = { ...m }
-        delete next[eventId]
-        return next
-      })
+      setRegs((prev) => prev.map((r) =>
+        r.id === regId ? { ...r, status: 'cancelled' } : r
+      ))
     } catch (e) {
       alert(e.message)
     } finally {
-      setBusy((b) => ({ ...b, [eventId]: false }))
+      setBusy((b) => ({ ...b, [regId]: false }))
     }
   }
 
-  function handleLogout() {
-    logout()
-    navigate('/login', { replace: true })
-  }
+  const active = regs.filter((r) => r.status !== 'cancelled')
+  const cancelled = regs.filter((r) => r.status === 'cancelled')
 
   return (
     <div className="min-h-screen bg-bg text-fg">
-      {/* Header */}
-      <header className="border-b border-border bg-menu px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center shadow-sm">
-            <Calendar className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-semibold text-lg text-white tracking-tight">Eventra</span>
-        </div>
-        <div className="flex items-center gap-3">
-          {['organizer', 'admin'].includes(user?.role) && (
-            <button
-              onClick={() => navigate('/organizer')}
-              className="text-sm text-usv-blue hover:text-white font-medium transition-colors"
-            >
-              My Events
-            </button>
-          )}
-          <span className="text-sm text-white/70">
-            {user?.full_name ?? user?.email}
-            <span className="ml-2 text-usv-gold font-medium capitalize">{user?.role}</span>
-          </span>
-          <button
-            onClick={toggle}
-            className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-            aria-label="Toggle theme"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign out
-          </button>
-        </div>
-      </header>
+      <Navbar />
 
-      {/* Main */}
-      <main className="px-6 py-8 max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6 text-fg">Upcoming Events</h1>
+      <main className="px-6 py-8 max-w-3xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-fg">
+            {user?.full_name ? `Welcome, ${user.full_name.split(' ')[0]}` : 'My Dashboard'}
+          </h1>
+          <p className="text-fg-3 text-sm mt-1">Your event registrations</p>
+        </div>
 
         {loading ? (
-          <div className="text-fg-3 text-sm">Loading events…</div>
-        ) : events.length === 0 ? (
-          <div className="text-fg-3 text-sm">No published events yet.</div>
+          <div className="flex items-center gap-2 text-fg-3 text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading…
+          </div>
+        ) : active.length === 0 && cancelled.length === 0 ? (
+          <div className="text-center py-20">
+            <CalendarCheck className="w-12 h-12 mx-auto mb-3 opacity-20 text-fg" />
+            <p className="text-fg-2 font-medium">No registrations yet</p>
+            <p className="text-fg-3 text-sm mt-1">
+              Browse <a href="/events" className="text-link hover:underline">upcoming events</a> and register.
+            </p>
+          </div>
         ) : (
-          <div className="flex flex-col gap-4">
-            {events.map((event) => {
-              const reg = myRegs[event.id]
-              const isBusy = busy[event.id]
-
-              return (
-                <div
-                  key={event.id}
-                  className="rounded-xl border border-border bg-surface p-5 flex flex-col gap-3 shadow-sm"
-                >
-                  {/* Top row */}
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h2 className="font-semibold text-lg leading-snug text-fg">{event.title}</h2>
-                      {event.description && (
-                        <p className="text-fg-2 text-sm mt-1 line-clamp-2">{event.description}</p>
-                      )}
-                    </div>
-                    {reg && (
-                      <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_BADGE[reg.status]}`}>
-                        {reg.status}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Meta */}
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-fg-3">
-                    {event.start_datetime && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {formatDate(event.start_datetime)}
-                      </span>
-                    )}
-                    {event.location && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {event.location}
-                      </span>
-                    )}
-                    {event.capacity && (
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3 h-3" />
-                        {event.capacity} spots
-                      </span>
-                    )}
-                    {event.category && (
-                      <span className="capitalize px-2 py-0.5 rounded-full bg-surface-alt border border-border">
-                        {event.category}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Action */}
-                  <div className="flex items-center gap-3 pt-1">
-                    {reg ? (
-                      <button
-                        onClick={() => handleCancel(event.id, reg.id)}
-                        disabled={isBusy}
-                        className="text-sm px-4 py-1.5 rounded-lg border border-red-400/40 text-red-600 dark:text-red-400 hover:bg-red-500/10 disabled:opacity-50 transition-colors"
-                      >
-                        {isBusy ? 'Cancelling…' : 'Cancel Registration'}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleRegister(event.id)}
-                        disabled={isBusy}
-                        className="text-sm px-4 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-white font-medium transition-colors"
-                      >
-                        {isBusy ? 'Registering…' : 'Register'}
-                      </button>
-                    )}
-                  </div>
+          <div className="flex flex-col gap-8">
+            {/* Active registrations */}
+            {active.length > 0 && (
+              <section>
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-fg-3 mb-3">
+                  Active ({active.length})
+                </h2>
+                <div className="flex flex-col gap-3">
+                  {active.map((reg) => (
+                    <RegCard
+                      key={reg.id}
+                      reg={reg}
+                      busy={busy[reg.id]}
+                      onCancel={() => handleCancel(reg.id)}
+                    />
+                  ))}
                 </div>
-              )
-            })}
+              </section>
+            )}
+
+            {/* Cancelled registrations */}
+            {cancelled.length > 0 && (
+              <section>
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-fg-3 mb-3">
+                  Cancelled ({cancelled.length})
+                </h2>
+                <div className="flex flex-col gap-3">
+                  {cancelled.map((reg) => (
+                    <RegCard key={reg.id} reg={reg} cancelled />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
       </main>
+    </div>
+  )
+}
+
+function RegCard({ reg, busy, onCancel, cancelled = false }) {
+  return (
+    <div className={`rounded-xl border bg-surface p-4 flex items-start justify-between gap-4 shadow-sm transition-opacity ${cancelled ? 'opacity-50 border-border' : 'border-border'}`}>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <h3 className="font-semibold text-fg text-sm truncate">
+            {reg.event_title ?? `Event #${reg.event_id}`}
+          </h3>
+          {!cancelled && reg.status && STATUS_BADGE[reg.status] && (
+            <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[reg.status]}`}>
+              {STATUS_LABEL[reg.status] ?? reg.status}
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-fg-3">
+          {reg.event_start_datetime && (
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {formatDate(reg.event_start_datetime)}
+            </span>
+          )}
+          {reg.event_location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              {reg.event_location}
+            </span>
+          )}
+          {reg.event_capacity && (
+            <span className="flex items-center gap-1">
+              <Users className="w-3 h-3" />
+              {reg.event_capacity} spots
+            </span>
+          )}
+        </div>
+
+        <p className="text-xs text-fg-3 mt-1">
+          {cancelled ? 'Cancelled' : 'Registered'} {formatDate(reg.registered_at)}
+        </p>
+      </div>
+
+      {!cancelled && onCancel && (
+        <button
+          onClick={onCancel}
+          disabled={busy}
+          className="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-red-400/40 text-red-600 dark:text-red-400 hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+        >
+          {busy ? 'Cancelling…' : 'Cancel'}
+        </button>
+      )}
     </div>
   )
 }

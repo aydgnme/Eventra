@@ -13,6 +13,13 @@ from app.utils.email_client import (
 )
 from app.utils.event_client import EventNotFound, EventServiceUnavailable, get_event
 
+def _event_title(event_id: int) -> str:
+    """Fetch event title; falls back to 'Event #<id>' if service is unavailable."""
+    try:
+        return get_event(event_id).get("title", f"Event #{event_id}")
+    except Exception:
+        return f"Event #{event_id}"
+
 registrations_bp = Blueprint("registrations", __name__)
 
 _ACTIVE_STATUSES = (RegistrationStatus.REGISTERED, RegistrationStatus.WAITLISTED)
@@ -141,7 +148,21 @@ def my_registrations():
         .order_by(Registration.registered_at.desc())
         .all()
     )
-    return jsonify({"registrations": [r.to_dict() for r in regs]}), 200
+
+    result = []
+    for r in regs:
+        data = r.to_dict()
+        try:
+            event = get_event(r.event_id)
+            data["event_title"] = event.get("title")
+            data["event_start_datetime"] = event.get("start_datetime")
+            data["event_location"] = event.get("location")
+            data["event_capacity"] = event.get("capacity")
+        except Exception:
+            pass
+        result.append(data)
+
+    return jsonify({"registrations": result}), 200
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +228,7 @@ def cancel_registration(registration_id):
         return jsonify({"error": "Already cancelled"}), 400
 
     was_registered = reg.status == RegistrationStatus.REGISTERED
-    event_title = f"Event #{reg.event_id}"
+    event_title = _event_title(reg.event_id)
 
     reg.status = RegistrationStatus.CANCELLED
     reg.cancelled_at = datetime.now(timezone.utc)
