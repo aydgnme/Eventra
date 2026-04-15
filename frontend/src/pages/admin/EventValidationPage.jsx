@@ -3,6 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, CheckCircle, Clock, XCircle, Eye, Check, X } from 'lucide-react'
 import adminService from '../../services/adminService'
 import { useToast } from '../../context/ToastContext'
+import EventPreviewModal from '../../components/admin/EventPreviewModal'
+import RejectModal from '../../components/admin/RejectModal'
 
 const CATEGORY_BADGE = {
   academic: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
@@ -263,7 +265,7 @@ export default function EventValidationPage() {
 
       {/* Modals rendered via lazy imports in commit 4 */}
       {previewEvent && (
-        <EventPreviewModalLazy
+        <EventPreviewModal
           event={previewEvent}
           onClose={() => setPreviewEvent(null)}
           onValidate={async () => { await handleValidate(previewEvent.id); setPreviewEvent(null) }}
@@ -271,7 +273,7 @@ export default function EventValidationPage() {
         />
       )}
       {rejectEvent && (
-        <RejectModalLazy
+        <RejectModal
           event={rejectEvent}
           onClose={() => setRejectEvent(null)}
           onSuccess={() => {
@@ -283,12 +285,4 @@ export default function EventValidationPage() {
       )}
     </div>
   )
-}
-
-// Placeholder modal wrappers — replaced with real components in commit 4
-function EventPreviewModalLazy({ event, onClose, onValidate, onReject }) {
-  return null
-}
-function RejectModalLazy({ event, onClose, onSuccess }) {
-  return null
 }
