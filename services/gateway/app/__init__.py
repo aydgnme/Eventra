@@ -169,6 +169,8 @@ def create_app(config_name: str = None) -> Flask:
     @app.before_request
     def enforce_cloudflare():
         """In production, block requests that didn't pass through Cloudflare."""
+        if request.method == "OPTIONS":
+            return
         if request.path in ("/health", "/health/services"):
             return
         if app.config.get("CLOUDFLARE_ONLY") and not request.headers.get("CF-Ray"):
@@ -176,6 +178,8 @@ def create_app(config_name: str = None) -> Flask:
 
     @app.before_request
     def authenticate():
+        if request.method == "OPTIONS":
+            return
         if _is_public():
             return
 
