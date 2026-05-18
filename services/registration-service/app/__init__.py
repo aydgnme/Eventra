@@ -21,6 +21,19 @@ def create_app():
 
     @app.route("/health")
     def health():
-        return {"status": "ok", "service": "registration-service"}
+        db_status = "connected"
+        try:
+            db.session.execute(db.text("SELECT 1"))
+        except Exception:
+            db_status = "disconnected"
+        return {
+            "status": "ok",
+            "service": "registration-service",
+            "version": "1.0",
+            "database": db_status,
+        }
+
+    from app.scheduler import start_scheduler
+    start_scheduler(app)
 
     return app

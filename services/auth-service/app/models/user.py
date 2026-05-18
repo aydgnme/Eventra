@@ -40,6 +40,7 @@ class User(db.Model):
             "full_name": self.full_name,
             "role": self.role,
             "is_active": self.is_active,
+            "oauth_provider": self.oauth_provider,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

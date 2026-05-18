@@ -26,9 +26,9 @@ export default function OAuthCallbackPage() {
   }, [loginWithToken, navigate])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950">
-      <div className="flex flex-col items-center gap-4 text-slate-400">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+    <div className="min-h-screen flex items-center justify-center bg-bg">
+      <div className="flex flex-col items-center gap-4 text-fg-2">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
         <p className="text-sm">Signing you in…</p>
       </div>
     </div>

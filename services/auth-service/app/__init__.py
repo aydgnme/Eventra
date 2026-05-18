@@ -24,6 +24,20 @@ def create_app():
 
     @app.route("/health")
     def health():
-        return {"status": "ok", "service": "auth-service"}
+        db_status = "connected"
+        try:
+            db.session.execute(db.text("SELECT 1"))
+        except Exception:
+            db_status = "disconnected"
+
+        return {
+            "status": "ok",
+            "service": "auth-service",
+            "version": "1.0",
+            "database": db_status,
+        }
+
+    with app.app_context():
+        db.create_all()
 
     return app

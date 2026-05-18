@@ -63,7 +63,7 @@ class TestMe:
         import jwt as pyjwt
         bad_token = pyjwt.encode(
             {"sub": "1", "role": "student", "email": "x@student.usv.ro"},
-            "wrong-secret-key",
+            "wrong-secret-key-with-enough-length-for-hs256",
             algorithm="HS256",
         )
         resp = client.get(

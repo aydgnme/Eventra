@@ -86,7 +86,13 @@ def google_callback():
     if not email:
         return _redirect_error("Email not provided by Google.")
 
-    full_name = profile.get("name", "") or _full_name_from_email(email)
+    given = profile.get("given_name", "").strip()
+    family = profile.get("family_name", "").strip()
+    full_name = (
+        profile.get("name", "").strip()
+        or (f"{given} {family}".strip() if given or family else "")
+        or _full_name_from_email(email)
+    )
 
     # 5. Verify email domain and assign the Eventra role.
     role = role_from_university_email(email)
@@ -110,6 +116,8 @@ def google_callback():
     else:
         if user.role != role:
             user.role = role
+        if full_name and user.full_name != full_name:
+            user.full_name = full_name
         if not user.oauth_provider:
             user.oauth_provider = "google"
             user.oauth_id = profile.get("sub")
