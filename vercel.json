@@ -1,0 +1,29 @@
+{
+    "experimentalServices": {
+        "frontend": {
+            "entrypoint": "frontend",
+            "routePrefix": "/",
+            "framework": "vite"
+        },
+        "admin-service": {
+            "entrypoint": "services/admin-service",
+            "routePrefix": "/_/admin-service"
+        },
+        "auth-service": {
+            "entrypoint": "services/auth-service",
+            "routePrefix": "/_/auth-service"
+        },
+        "event-service": {
+            "entrypoint": "services/event-service",
+            "routePrefix": "/_/event-service"
+        },
+        "gateway": {
+            "entrypoint": "services/gateway",
+            "routePrefix": "/_/gateway"
+        },
+        "registration-service": {
+            "entrypoint": "services/registration-service",
+            "routePrefix": "/_/registration-service"
+        }
+    }
+}
