@@ -75,5 +75,3 @@ jobs:
 
       - name: Build all images
         run: docker compose -f docker-compose.yml build
-        env:
-          CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
