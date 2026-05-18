@@ -37,7 +37,4 @@ def create_app():
             "database": db_status,
         }
 
-    with app.app_context():
-        db.create_all()
-
     return app
