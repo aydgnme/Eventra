@@ -70,5 +70,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create CI env file
+        run: cp .env.example .env
+
       - name: Build all images
         run: docker compose -f docker-compose.yml build
+        env:
+          CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
