@@ -1,0 +1,20 @@
+services:
+  gateway:
+    image: ghcr.io/aydgnme/eventra-gateway:latest
+    build: null
+
+  auth-service:
+    image: ghcr.io/aydgnme/eventra-auth-service:latest
+    build: null
+
+  event-service:
+    image: ghcr.io/aydgnme/eventra-event-service:latest
+    build: null
+
+  registration-service:
+    image: ghcr.io/aydgnme/eventra-registration-service:latest
+    build: null
+
+  admin-service:
+    image: ghcr.io/aydgnme/eventra-admin-service:latest
+    build: null

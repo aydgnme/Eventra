@@ -96,6 +96,40 @@ VITE_OAUTH_BASE=https://api.yourdomain.com
 
 The frontend still defaults to `/api` for local Docker/Nginx deployments.
 
+## Continuous Deployment
+
+The `CD` workflow runs after `CI` succeeds on `main`.
+
+Backend CD publishes production backend images to GitHub Container Registry:
+
+```bash
+ghcr.io/aydgnme/eventra-gateway
+ghcr.io/aydgnme/eventra-auth-service
+ghcr.io/aydgnme/eventra-event-service
+ghcr.io/aydgnme/eventra-registration-service
+ghcr.io/aydgnme/eventra-admin-service
+```
+
+If these GitHub repository secrets are present, the workflow also deploys the backend
+stack over SSH:
+
+| Secret | Description |
+|--------|-------------|
+| `DEPLOY_HOST` | Cloud server hostname or IP |
+| `DEPLOY_USER` | SSH user |
+| `DEPLOY_SSH_KEY` | Private SSH key for deployment |
+| `DEPLOY_PATH` | Absolute repo path on the server |
+| `DEPLOY_PORT` | Optional SSH port, defaults to `22` |
+| `DEPLOY_KNOWN_HOSTS` | Optional pinned SSH known_hosts entry |
+| `GHCR_READ_TOKEN` | Optional token with `read:packages` if GHCR images are private |
+
+The server must have Docker, Docker Compose, Git, this repository checked out at
+`DEPLOY_PATH`, and a production `.env` file in that directory.
+
+Frontend CD is handled by Vercel's GitHub integration. Configure the Vercel project
+with root directory `frontend`, build command `npm run build`, and output directory
+`dist`.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env` in the project root and fill in:
