@@ -14,6 +14,7 @@ import { useToast } from '../context/ToastContext'
 import { useEvent } from '../hooks/useEvents'
 import { useRegistrationStatus, useRegistrationCount, useRegister, useCancelRegistration, useLeaveWaitlist, useJoinWaitlist } from '../hooks/useRegistrations'
 import { useEventFeedback, useSubmitFeedback } from '../hooks/useFeedback'
+import { apiUrl } from '../services/api'
 
 const CATEGORY_STYLES = {
   academic: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -431,7 +432,7 @@ export default function EventDetailPage() {
                         )}
                       </div>
                       <a
-                        href={`/api/events/${event.id}/materials/${mat.id}/download`}
+                        href={apiUrl(`/events/${event.id}/materials/${mat.id}/download`)}
                         download
                         className="shrink-0 text-xs px-2.5 py-1 rounded-lg border border-border text-fg-2 hover:text-fg hover:bg-surface transition-colors"
                       >

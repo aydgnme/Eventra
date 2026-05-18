@@ -6,6 +6,7 @@ import FileTypeIcon from '../components/FileTypeIcon'
 import ConfirmModal from '../components/ConfirmModal'
 import { useToast } from '../context/ToastContext'
 import { useEvent, useMaterials, useUploadMaterial, useDeleteMaterial } from '../hooks/useEvents'
+import { apiUrl } from '../services/api'
 
 const ACCEPTED = '.pdf,.png,.jpg,.jpeg,.pptx'
 const MAX_SIZE_MB = 16
@@ -163,7 +164,7 @@ export default function MaterialsPage() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <a
-                      href={`/api/events/${id}/materials/${mat.id}/download`}
+                      href={apiUrl(`/events/${id}/materials/${mat.id}/download`)}
                       download
                       className="p-2 rounded-lg text-fg-3 hover:text-brand-500 hover:bg-brand-500/10 transition-colors"
                       title="Download"

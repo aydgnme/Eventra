@@ -1,4 +1,5 @@
 import api from './api'
+import { apiUrl } from './api'
 
 export const authService = {
   login: (email, password) =>
@@ -38,6 +39,6 @@ export const authService = {
 }
 
 export function getOAuthGoogleUrl() {
-  const base = import.meta.env.VITE_OAUTH_BASE ?? '/api'
-  return `${base.replace(/\/$/, '')}/auth/oauth/google`
+  const base = import.meta.env.VITE_OAUTH_BASE
+  return base ? `${base.replace(/\/$/, '')}/auth/oauth/google` : apiUrl('/auth/oauth/google')
 }

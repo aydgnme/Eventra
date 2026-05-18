@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ── Backend Tests ─────────────────────────
   backend-tests:
@@ -34,7 +41,10 @@ jobs:
           cache-dependency-path: services/${{ matrix.service }}/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt pytest
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Compile check
+        run: python -m compileall -q .
 
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short
@@ -59,10 +69,16 @@ jobs:
         run: npm ci
 
       - name: Lint
-        run: npx eslint src/ --max-warnings 0 || true
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --run
 
       - name: Build
         run: npm run build
+        env:
+          VITE_API_BASE_URL: http://localhost:5000
+          VITE_OAUTH_BASE: http://localhost:5000
 
   # ── Docker Build Check ───────────────────
   docker-build:
@@ -73,5 +89,12 @@ jobs:
       - name: Create CI env file
         run: cp .env.example .env
 
+      - name: Validate Compose config
+        run: docker compose --env-file .env.example -f docker-compose.yml config
+        env:
+          EVENTRA_ENV_FILE: .env.example
+
       - name: Build all images
-        run: docker compose -f docker-compose.yml build
+        run: docker compose --env-file .env.example -f docker-compose.yml build
+        env:
+          EVENTRA_ENV_FILE: .env.example

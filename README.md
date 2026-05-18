@@ -60,29 +60,41 @@ open http://localhost:5055
 `docker-compose.override.yml` is loaded automatically for local development. It exposes
 service ports on `localhost`, mounts source folders, and uses development Docker targets.
 
-## Online Deployment (Single Host)
+## Online Deployment (Cloud Docker + Vercel)
 
-For an online deployment, use only the production compose file so internal services are
-kept on the Docker network and only the frontend is published:
+For the backend, run the production compose stack on the cloud host. It publishes the
+gateway as the public API and keeps the microservices, PostgreSQL, and Redis on the
+Docker network:
 
 ```bash
 cp .env.example .env
 # Fill strong secrets and your real domain values in .env
-docker compose -f docker-compose.yml up -d --build
+docker compose -f docker-compose.yml up -d --build \
+  db redis auth-service event-service registration-service admin-service gateway
 ```
 
 Required online URL values:
 
 ```bash
-CORS_ORIGINS=https://yourdomain.com
-OAUTH_FRONTEND_URL=https://yourdomain.com
-OAUTH_GOOGLE_REDIRECT_URI=https://yourdomain.com/api/auth/oauth/google/callback
-FRONTEND_PORT=80
+CORS_ORIGINS=https://your-vercel-project.vercel.app,https://yourdomain.com
+OAUTH_FRONTEND_URL=https://your-vercel-project.vercel.app
+OAUTH_GOOGLE_REDIRECT_URI=https://api.yourdomain.com/auth/oauth/google/callback
+GATEWAY_PORT=5000
+CLOUDFLARE_ONLY=true
 ```
 
-For HTTPS, put this stack behind a reverse proxy such as Caddy, Traefik, Nginx, or
-Cloudflare Tunnel and point it to the published frontend port. API calls go through
-the frontend Nginx `/api` proxy to the gateway.
+For HTTPS, put the gateway behind a reverse proxy such as Caddy, Traefik, Nginx, or
+Cloudflare Tunnel and point it to the published gateway port. If Vercel calls the API
+domain directly without Cloudflare, set `CLOUDFLARE_ONLY=false`.
+
+For Vercel, deploy the `frontend/` directory and set:
+
+```bash
+VITE_API_BASE_URL=https://api.yourdomain.com
+VITE_OAUTH_BASE=https://api.yourdomain.com
+```
+
+The frontend still defaults to `/api` for local Docker/Nginx deployments.
 
 ## Environment Variables
 
