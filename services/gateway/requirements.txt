@@ -16,7 +16,9 @@ pathspec==1.0.4
 platformdirs==4.9.4
 pycodestyle==2.14.0
 pyflakes==3.4.0
-PyJWT==2.10.1
+pytest==9.0.3
+
 requests==2.32.3
 typing_extensions==4.15.0
 Werkzeug==3.1.6
+gunicorn==23.0.0

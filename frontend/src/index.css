@@ -1,15 +1,73 @@
 @import "tailwindcss";
 
-@theme {
-  --font-sans: 'Inter', system-ui, sans-serif;
+/* Enable class-based dark mode */
+@custom-variant dark (&:where(.dark, .dark *));
 
-  /* Brand: USV-inspired Burgundy/Maroon */
-  --color-brand-50: #fef2f3;
+/* ────────────────────────────────────────────
+   LIGHT MODE — USV website palette
+   usv.ro: white/gray bg, navy text, burgundy accent
+   ──────────────────────────────────────────── */
+:root {
+  --c-bg:          #f1f2f3;   /* USV page background */
+  --c-surface:     #ffffff;   /* white cards / panels */
+  --c-surface-alt: #e8eaed;   /* inputs, subtle bg */
+  --c-border:      #dbdbdb;   /* USV border gray */
+  --c-fg:          #192041;   /* USV dark navy — headings & primary text */
+  --c-fg-2:        #3c434b;   /* USV body gray — secondary text */
+  --c-fg-3:        #8a909a;   /* muted / placeholder */
+  --c-link:        #a22531;   /* USV burgundy for interactive elements */
+  --c-menu:        #272f54;   /* USV nav menu dark bg */
+}
+
+/* ────────────────────────────────────────────
+   DARK MODE — USV navy palette
+   Deep navy foundation, burgundy accent
+   ──────────────────────────────────────────── */
+html.dark {
+  --c-bg:          #0d1020;   /* near-black navy */
+  --c-surface:     #192041;   /* USV dark navy as elevated surface */
+  --c-surface-alt: #1e2847;   /* slightly lighter navy */
+  --c-border:      #2a3d6e;   /* navy border */
+  --c-fg:          #f1f2f3;   /* USV light gray — primary text */
+  --c-fg-2:        #92c6e6;   /* USV light blue — secondary text */
+  --c-fg-3:        #4e6080;   /* muted */
+  --c-link:        #92c6e6;   /* USV light blue — links */
+  --c-menu:        #272f54;   /* same USV menu */
+}
+
+@theme inline {
+  /* USV typography — Noto Sans (official USV font) */
+  --font-sans: 'Noto Sans', system-ui, sans-serif;
+  --font-serif: 'Noto Serif', Georgia, serif;
+
+  /* ── USV Brand: Burgundy/Maroon ── */
+  --color-brand-50:  #fef2f3;
   --color-brand-100: #fde6e8;
   --color-brand-400: #c94354;
-  --color-brand-500: #a22531;
+  --color-brand-500: #a22531;   /* exact USV burgundy */
   --color-brand-600: #8a1e2a;
   --color-brand-700: #6f1822;
+
+  /* ── USV Brand: Navy ── */
+  --color-navy-900: #0d2e73;    /* USV deep navy */
+  --color-navy-800: #192041;    /* USV dark navy */
+  --color-navy-700: #164194;    /* USV medium blue */
+  --color-navy-600: #272f54;    /* USV menu navy */
+
+  /* ── USV Brand: Accent ── */
+  --color-usv-blue: #92c6e6;    /* USV light blue */
+  --color-usv-gold: #f3b702;    /* USV gold/yellow */
+
+  /* ── Semantic tokens (runtime-dynamic) ── */
+  --color-bg:          var(--c-bg);
+  --color-surface:     var(--c-surface);
+  --color-surface-alt: var(--c-surface-alt);
+  --color-border:      var(--c-border);
+  --color-fg:          var(--c-fg);
+  --color-fg-2:        var(--c-fg-2);
+  --color-fg-3:        var(--c-fg-3);
+  --color-link:        var(--c-link);
+  --color-menu:        var(--c-menu);
 }
 
 * {

@@ -1,23 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Calendar, LogOut, Pencil, Plus, Trash2, X, Loader2, AlertCircle } from 'lucide-react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { eventsApi } from '../lib/api'
-
-const CATEGORIES = ['academic', 'sport', 'career', 'volunteer', 'cultural']
-const MODES = ['in-person', 'online', 'hybrid']
-
-const EMPTY_FORM = {
-  title: '',
-  description: '',
-  category: 'academic',
-  mode: 'in-person',
-  location: '',
-  capacity: '',
-  start_datetime: '',
-  end_datetime: '',
-  is_published: false,
-}
+import {
+  Calendar, Pencil, Plus, Trash2, X,
+  Loader2, AlertCircle, Users, ChevronRight,
+  Eye, BarChart3, MapPin, AlertTriangle,
+} from 'lucide-react'
+import { useMyEvents, useDeleteEvent } from '../hooks/useEvents'
+import Navbar from '../components/Navbar'
+import { useToast } from '../context/ToastContext'
+import ConfirmModal from '../components/ConfirmModal'
 
 function formatDate(dt) {
   if (!dt) return '—'
@@ -28,353 +19,194 @@ function formatDate(dt) {
 }
 
 export default function OrganizerDashboard() {
-  const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const { addToast } = useToast()
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
-  const [events, setEvents] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState(null)   // event object being edited
-  const [form, setForm] = useState(EMPTY_FORM)
-  const [saving, setSaving] = useState(false)
-  const [formError, setFormError] = useState(null)
-  const [deleteId, setDeleteId] = useState(null)  // confirm dialog
+  const { data, isLoading, error } = useMyEvents()
+  const deleteMutation = useDeleteEvent()
 
-  const load = useCallback(async () => {
-    try {
-      const data = await eventsApi.mine()
-      setEvents(data.events ?? [])
-    } catch {
-      setEvents([])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { load() }, [load])
-
-  function openCreate() {
-    setEditing(null)
-    setForm(EMPTY_FORM)
-    setFormError(null)
-    setShowForm(true)
-  }
-
-  function openEdit(event) {
-    setEditing(event)
-    setForm({
-      title: event.title ?? '',
-      description: event.description ?? '',
-      category: event.category ?? 'academic',
-      mode: event.mode ?? 'in-person',
-      location: event.location ?? '',
-      capacity: event.capacity ?? '',
-      start_datetime: event.start_datetime ? event.start_datetime.slice(0, 16) : '',
-      end_datetime: event.end_datetime ? event.end_datetime.slice(0, 16) : '',
-      is_published: event.is_published ?? false,
-    })
-    setFormError(null)
-    setShowForm(true)
-  }
-
-  function closeForm() {
-    setShowForm(false)
-    setEditing(null)
-    setFormError(null)
-  }
-
-  function handleChange(e) {
-    const { name, value, type, checked } = e.target
-    setForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : value }))
-    setFormError(null)
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    setSaving(true)
-    setFormError(null)
-    const payload = {
-      ...form,
-      capacity: form.capacity === '' ? null : Number(form.capacity),
-    }
-    try {
-      if (editing) {
-        const data = await eventsApi.update(editing.id, payload)
-        setEvents((evs) => evs.map((ev) => (ev.id === editing.id ? data.event : ev)))
-      } else {
-        const data = await eventsApi.create(payload)
-        setEvents((evs) => [data.event, ...evs])
-      }
-      closeForm()
-    } catch (err) {
-      setFormError(err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleDelete(id) {
-    try {
-      await eventsApi.remove(id)
-      setEvents((evs) => evs.filter((ev) => ev.id !== id))
-    } catch (err) {
-      alert(err.message)
-    } finally {
-      setDeleteId(null)
-    }
-  }
-
-  function handleLogout() {
-    logout()
-    navigate('/login', { replace: true })
-  }
+  const events = data?.events ?? []
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      {/* Header */}
-      <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
-            <Calendar className="w-4 h-4 text-white" />
+    <div className="min-h-screen bg-bg text-fg">
+      <Navbar />
+
+      <main className="px-6 py-8 max-w-6xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-extrabold text-fg tracking-tight text-white">Organizer Dashboard</h1>
+            <p className="text-fg-3 text-sm mt-1">Manage your events, materials, and participant lists</p>
           </div>
-          <span className="font-semibold text-lg">Eventra</span>
-          <span className="text-slate-500 text-sm ml-1">/ Organizer</span>
-        </div>
-        <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/dashboard')}
-            className="text-sm text-slate-400 hover:text-slate-200 transition-colors"
+            onClick={() => navigate('/organizer/events/create')}
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-brand-500 hover:bg-brand-400 text-white font-bold text-sm transition-all shadow-lg shadow-brand-500/20"
           >
-            All Events
-          </button>
-          <span className="text-sm text-slate-400">
-            {user?.full_name ?? user?.email}
-          </span>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign out
-          </button>
-        </div>
-      </header>
-
-      {/* Main */}
-      <main className="px-6 py-8 max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">My Events</h1>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Event
+            <Plus className="w-5 h-5" />
+            Create New Event
           </button>
         </div>
 
-        {loading ? (
-          <div className="text-slate-500 text-sm">Loading…</div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-28 bg-surface border border-border rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="flex items-center gap-3 p-6 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500">
+            <AlertCircle className="w-6 h-6" />
+            <p className="font-medium">Failed to load events: {error.message}</p>
+          </div>
         ) : events.length === 0 ? (
-          <div className="text-center py-20 text-slate-500">
-            <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p>No events yet. Create your first one!</p>
+          <div className="text-center py-32 bg-surface border border-border rounded-3xl shadow-sm">
+            <Calendar className="w-20 h-20 mx-auto mb-6 opacity-10 text-fg" />
+            <h2 className="text-2xl font-bold text-fg">No events created yet</h2>
+            <p className="text-fg-3 text-sm mt-2 max-w-sm mx-auto leading-relaxed">
+              Start your journey as an organizer by creating your first event for the USV community.
+            </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 gap-4">
             {events.map((event) => (
-              <div
+              <EventRow
                 key={event.id}
-                className="rounded-xl border border-slate-800 bg-slate-900 px-5 py-4 flex items-start justify-between gap-4"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h2 className="font-semibold truncate">{event.title}</h2>
-                    <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
-                      event.is_published
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-slate-700 text-slate-400'
-                    }`}>
-                      {event.is_published ? 'Published' : 'Draft'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    {formatDate(event.start_datetime)}
-                    {event.location ? ` · ${event.location}` : ''}
-                    {event.capacity ? ` · ${event.capacity} spots` : ''}
-                    {event.category ? ` · ${event.category}` : ''}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => openEdit(event)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-                    title="Edit"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteId(event.id)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+                event={event}
+                onEdit={() => navigate(`/organizer/events/${event.id}/edit`)}
+                onDelete={() => setDeleteTarget(event)}
+                onParticipants={() => navigate(`/organizer/events/${event.id}/participants`)}
+                onMaterials={() => navigate(`/organizer/events/${event.id}/materials`)}
+                onPreview={() => navigate(`/events/${event.id}`)}
+              />
             ))}
           </div>
         )}
       </main>
 
-      {/* ── Event Form Modal ── */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={closeForm} />
-          <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-              <h2 className="font-semibold text-lg">{editing ? 'Edit Event' : 'New Event'}</h2>
-              <button onClick={closeForm} className="text-slate-500 hover:text-slate-300 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Title */}
-              <Field label="Title *">
-                <input
-                  name="title" required value={form.title} onChange={handleChange}
-                  placeholder="Event title"
-                  className={inputCls}
-                />
-              </Field>
-
-              {/* Description */}
-              <Field label="Description">
-                <textarea
-                  name="description" rows={3} value={form.description} onChange={handleChange}
-                  placeholder="What is this event about?"
-                  className={inputCls}
-                />
-              </Field>
-
-              {/* Category + Mode */}
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Category *">
-                  <select name="category" value={form.category} onChange={handleChange} className={inputCls}>
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Mode *">
-                  <select name="mode" value={form.mode} onChange={handleChange} className={inputCls}>
-                    {MODES.map((m) => (
-                      <option key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-
-              {/* Location + Capacity */}
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Location">
-                  <input
-                    name="location" value={form.location} onChange={handleChange}
-                    placeholder="Room / building / URL"
-                    className={inputCls}
-                  />
-                </Field>
-                <Field label="Capacity">
-                  <input
-                    name="capacity" type="number" min="1" value={form.capacity} onChange={handleChange}
-                    placeholder="Unlimited"
-                    className={inputCls}
-                  />
-                </Field>
-              </div>
-
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Start *">
-                  <input
-                    name="start_datetime" type="datetime-local" required value={form.start_datetime} onChange={handleChange}
-                    className={inputCls}
-                  />
-                </Field>
-                <Field label="End *">
-                  <input
-                    name="end_datetime" type="datetime-local" required value={form.end_datetime} onChange={handleChange}
-                    className={inputCls}
-                  />
-                </Field>
-              </div>
-
-              {/* Publish */}
-              <label className="flex items-center gap-3 cursor-pointer select-none">
-                <input
-                  type="checkbox" name="is_published" checked={form.is_published} onChange={handleChange}
-                  className="w-4 h-4 accent-indigo-500"
-                />
-                <span className="text-sm text-slate-300">Publish immediately</span>
-              </label>
-
-              {formError && (
-                <div className="flex items-center gap-2 text-red-400 text-sm">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  {formError}
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={closeForm} className="px-4 py-2 text-sm rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
-                  Cancel
-                </button>
-                <button
-                  type="submit" disabled={saving}
-                  className="flex items-center gap-2 px-5 py-2 text-sm rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium transition-colors"
-                >
-                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  {editing ? 'Save Changes' : 'Create Event'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Delete Confirm ── */}
-      {deleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setDeleteId(null)} />
-          <div className="relative w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl">
-            <h3 className="font-semibold text-lg mb-2">Delete Event?</h3>
-            <p className="text-slate-400 text-sm mb-6">This action cannot be undone.</p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setDeleteId(null)} className="px-4 py-2 text-sm rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(deleteId)}
-                className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium transition-colors"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title="Delete Event"
+        message={`Are you sure you want to delete "${deleteTarget?.title}"? All registrations and data associated with this event will be permanently removed.`}
+        onConfirm={() => deleteMutation.mutate(deleteTarget.id, {
+          onSuccess: () => { addToast('Event deleted successfully', 'info'); setDeleteTarget(null) },
+          onError: (err) => addToast(err.message, 'error'),
+        })}
+        onCancel={() => setDeleteTarget(null)}
+        confirmLabel={deleteMutation.isPending ? 'Deleting...' : 'Delete Event'}
+        danger={true}
+      />
     </div>
   )
 }
 
-const inputCls = 'w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all'
-
-function Field({ label, children }) {
+function StatusPill({ event }) {
+  if (event.is_published) {
+    return (
+      <span className="shrink-0 text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+        Published
+      </span>
+    )
+  }
+  if (event.review_status === 'rejected') {
+    return (
+      <span className="shrink-0 flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-red-500/10 text-red-500 border border-red-500/20" title={event.rejection_reason || 'Rejected by admin'}>
+        Rejected
+      </span>
+    )
+  }
   return (
-    <div className="space-y-1.5">
-      <label className="block text-xs font-medium text-slate-400 uppercase tracking-wide">{label}</label>
-      {children}
+    <span className="shrink-0 text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
+      Pending Review
+    </span>
+  )
+}
+
+function EventRow({ event, onEdit, onDelete, onParticipants, onMaterials, onPreview }) {
+  return (
+    <div className="group rounded-2xl border border-border bg-surface p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-6 transition-all hover:shadow-md hover:border-brand-500/20">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-3 mb-2">
+          <h2 className="font-bold text-fg text-lg truncate group-hover:text-brand-500 transition-colors">{event.title}</h2>
+          <StatusPill event={event} />
+          {event.category && (
+             <span className="shrink-0 text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-navy-800 text-usv-blue border border-navy-700">
+               {event.category}
+             </span>
+          )}
+        </div>
+        {event.review_status === 'rejected' && (
+          <div className="flex items-start gap-2 bg-red-500/8 border border-red-500/20 rounded-lg px-3 py-2 mb-2">
+            <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              {event.rejection_reason && (
+                <p className="text-xs text-red-300 leading-snug">{event.rejection_reason}</p>
+              )}
+              <p className="text-xs text-red-400/70 mt-0.5">Edit your event to resubmit for review.</p>
+            </div>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-fg-2">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-4 h-4 text-brand-500" />
+            <span>{formatDate(event.start_datetime)}</span>
+          </div>
+          {event.location && (
+            <div className="flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-brand-500" />
+              <span className="truncate max-w-xs">{event.location}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 font-medium">
+            <Users className="w-4 h-4 text-brand-500" />
+            <span>{event.capacity ? `${event.capacity} spots` : 'Unlimited capacity'}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="h-8 w-px bg-border hidden lg:block mx-2" />
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={onParticipants}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-surface-alt border border-border text-xs font-bold text-fg-2 hover:text-fg hover:bg-border transition-colors"
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            Participants
+          </button>
+          <button
+            onClick={onMaterials}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-surface-alt border border-border text-xs font-bold text-fg-2 hover:text-fg hover:bg-border transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Materials
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1 ml-auto lg:ml-0">
+          <button
+            onClick={onPreview}
+            className="p-2.5 rounded-lg text-fg-3 hover:text-brand-500 hover:bg-brand-500/10 transition-colors"
+            title="View public page"
+          >
+            <Eye className="w-5 h-5" />
+          </button>
+          <button
+            onClick={onEdit}
+            className="p-2.5 rounded-lg text-fg-3 hover:text-brand-500 hover:bg-brand-500/10 transition-colors"
+            title="Edit details"
+          >
+            <Pencil className="w-5 h-5" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-2.5 rounded-lg text-fg-3 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+            title="Delete event"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

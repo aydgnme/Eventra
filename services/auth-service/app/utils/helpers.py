@@ -45,12 +45,12 @@ def _full_name_from_email(email: str) -> str:
         return ""
 
     cleaned_parts = []
-    for i, part in enumerate(parts):
-        cleaned = re.sub(r"\d+$", "", part) if i == len(parts) - 1 else part
+    for part in parts:
+        cleaned = re.sub(r"\d+$", "", part)
         if cleaned:
-            cleaned_parts.append(cleaned)
+            cleaned_parts.append(cleaned.capitalize())
 
-    return " ".join(part.capitalize() for part in cleaned_parts)
+    return " ".join(cleaned_parts)
 
 def _make_state() -> str:
     ts = str(int(time.time()))

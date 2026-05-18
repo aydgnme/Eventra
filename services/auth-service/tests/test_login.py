@@ -64,12 +64,13 @@ class TestLoginSuccess:
         assert "password_hash" not in user
 
     def test_oauth_user_cannot_login_with_password(self, client, oauth_user):
-        """OAuth-only user has no password_hash — login must fail."""
+        """OAuth-only user should be told to use Google OAuth."""
         resp = client.post(
             "/auth/login",
             json={"email": "oauth@student.usv.ro", "password": "anypassword"},
         )
-        assert resp.status_code == 401
+        assert resp.status_code == 403
+        assert "Google OAuth" in resp.get_json()["error"]
 
 
 class TestLoginFailure:
