@@ -20,6 +20,14 @@ app.routes.materials module
    :show-inheritance:
    :undoc-members:
 
+app.routes.notifications module
+-------------------------------
+
+.. automodule:: app.routes.notifications
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Module contents
 ---------------
 

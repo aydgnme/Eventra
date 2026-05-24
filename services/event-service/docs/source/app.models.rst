@@ -36,6 +36,14 @@ app.models.sponsor module
    :show-inheritance:
    :undoc-members:
 
+app.models.event\_review module
+-------------------------------
+
+.. automodule:: app.models.event_review
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 Module contents
 ---------------
 

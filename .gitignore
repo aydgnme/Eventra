@@ -24,8 +24,10 @@ services/*/*.pyc
 services/*/.env
 services/*/*.db
 
-# docs/
-services/*/docs/
+# Sphinx build outputs
+services/*/docs/_build/
+services/*/docs/build/
+services/*/docs/__pycache__/
 
 #instance
 services/*/instance/
