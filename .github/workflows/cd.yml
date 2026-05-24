@@ -88,6 +88,29 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
+  publish-report:
+    needs: [config, publish-backend-images]
+    if: always() && needs.publish-backend-images.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Image publish report
+        run: |
+          {
+            echo "## Image Publish Report - $(date '+%Y-%m-%d %H:%M UTC')"
+            echo ""
+            echo "| Image | Tag |"
+            echo "|---|---|"
+            echo "| eventra-gateway | \`${{ env.SOURCE_SHA }}\` |"
+            echo "| eventra-auth-service | \`${{ env.SOURCE_SHA }}\` |"
+            echo "| eventra-event-service | \`${{ env.SOURCE_SHA }}\` |"
+            echo "| eventra-registration-service | \`${{ env.SOURCE_SHA }}\` |"
+            echo "| eventra-admin-service | \`${{ env.SOURCE_SHA }}\` |"
+            echo ""
+            echo "Registry: \`${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}\`"
+            echo ""
+            echo "Deploy enabled: **${{ needs.config.outputs.deploy_enabled }}**"
+          } >> $GITHUB_STEP_SUMMARY
+
   deploy-backend:
     needs:
       - config
@@ -133,3 +156,17 @@ jobs:
              EVENTRA_ENV_FILE=.env docker compose -f docker-compose.yml -f docker-compose.deploy.yml pull gateway auth-service event-service registration-service admin-service
              EVENTRA_ENV_FILE=.env docker compose -f docker-compose.yml -f docker-compose.deploy.yml up -d db redis auth-service event-service registration-service admin-service gateway
              EVENTRA_ENV_FILE=.env docker compose -f docker-compose.yml -f docker-compose.deploy.yml ps"
+
+      - name: Deploy report
+        if: always()
+        run: |
+          {
+            echo "## CD Deploy Report - Eventra - $(date '+%Y-%m-%d %H:%M UTC')"
+            echo ""
+            echo "| Detail | Value |"
+            echo "|---|---|"
+            echo "| Commit | \`${{ env.SOURCE_SHA }}\` |"
+            echo "| Images published | 5 (gateway, auth, event, registration, admin) |"
+            echo "| Registry | \`${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}\` |"
+            echo "| Deploy status | ${{ job.status == 'success' && ':white_check_mark: Success' || ':x: Failed' }} |"
+          } >> $GITHUB_STEP_SUMMARY

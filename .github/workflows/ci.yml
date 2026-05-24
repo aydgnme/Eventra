@@ -98,3 +98,24 @@ jobs:
         run: docker compose --env-file .env.example -f docker-compose.yml build
         env:
           EVENTRA_ENV_FILE: .env.example
+
+  # ── CI Summary Report ──────────────────────
+  ci-report:
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-build, docker-build]
+    if: always()
+    steps:
+      - name: Generate CI report
+        run: |
+          {
+            echo "## CI Report - Eventra - $(date '+%Y-%m-%d %H:%M UTC')"
+            echo ""
+            echo "| Check | Status |"
+            echo "|---|---|"
+            echo "| Backend tests (5 services) | ${{ needs.backend-tests.result == 'success' && ':white_check_mark: Passed' || ':x: Failed' }} |"
+            echo "| Frontend build & lint | ${{ needs.frontend-build.result == 'success' && ':white_check_mark: Passed' || ':x: Failed' }} |"
+            echo "| Docker build | ${{ needs.docker-build.result == 'success' && ':white_check_mark: Passed' || ':x: Failed' }} |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Branch | \`${{ github.ref_name }}\` |"
+            echo "| Triggered by | ${{ github.actor }} |"
+          } >> $GITHUB_STEP_SUMMARY

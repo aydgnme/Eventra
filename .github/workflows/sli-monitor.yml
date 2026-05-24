@@ -1,0 +1,169 @@
+name: SLI Monitor - Metrici & Observabilitate
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      slo_latency_ms:
+        description: 'Prag SLO latenta (ms)'
+        required: false
+        default: '500'
+      slo_availability:
+        description: 'Prag SLO disponibilitate (%)'
+        required: false
+        default: '99.0'
+
+jobs:
+  measure-sli:
+    name: Measure SLI metrics
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SLI 1 - Backend availability
+        id: backend_availability
+        run: |
+          BACKEND_URL="${{ vars.BACKEND_URL || 'http://34.65.125.206:5000' }}"
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 10 "$BACKEND_URL/health" || echo "000")
+
+          echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: SLI 2 - Frontend availability
+        id: frontend_availability
+        run: |
+          FRONTEND_URL="${{ vars.FRONTEND_URL || vars.APP_URL || 'https://eventra.vercel.app' }}"
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 10 "$FRONTEND_URL" || echo "000")
+
+          echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: SLI 3 - Backend latency
+        id: latency
+        run: |
+          BACKEND_URL="${{ vars.BACKEND_URL || 'http://34.65.125.206:5000' }}"
+          SLO_MS="${{ github.event.inputs.slo_latency_ms || '500' }}"
+
+          LATENCY_SEC=$(curl -s -o /dev/null -w "%{time_total}" \
+            --max-time 10 "$BACKEND_URL/health" || echo "99")
+          LATENCY_MS=$(echo "$LATENCY_SEC * 1000" | bc | cut -d. -f1)
+
+          echo "latency_ms=$LATENCY_MS" >> $GITHUB_OUTPUT
+
+          if [ "$LATENCY_MS" -lt "$SLO_MS" ]; then
+            echo "slo_latency_ok=true" >> $GITHUB_OUTPUT
+          else
+            echo "slo_latency_ok=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: SLI 4 - Service endpoints health
+        id: services
+        run: |
+          BACKEND_URL="${{ vars.BACKEND_URL || 'http://34.65.125.206:5000' }}"
+          HEALTHY=0
+          TOTAL=4
+
+          for endpoint in /api/auth/health /api/events/health /api/registrations/health /api/admin/health; do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$BACKEND_URL$endpoint" 2>/dev/null || echo "000")
+            if [ "$CODE" = "200" ] || [ "$CODE" = "204" ] || [ "$CODE" = "404" ]; then
+              HEALTHY=$((HEALTHY + 1))
+            fi
+          done
+
+          echo "healthy=$HEALTHY" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+
+      - name: Calculate Error Budget
+        id: budget
+        run: |
+          SLO_AVAIL="${{ github.event.inputs.slo_availability || '99.0' }}"
+          ERROR_BUDGET=$(echo "100 - $SLO_AVAIL" | bc)
+          MINUTES=$(echo "scale=1; 43200 * $ERROR_BUDGET / 100" | bc)
+
+          echo "error_budget_pct=$ERROR_BUDGET" >> $GITHUB_OUTPUT
+          echo "error_budget_min=$MINUTES" >> $GITHUB_OUTPUT
+
+      - name: Generate SLI/SLO report
+        if: always()
+        run: |
+          BE_AVAIL="${{ steps.backend_availability.outputs.available }}"
+          BE_HTTP="${{ steps.backend_availability.outputs.http_code }}"
+          FE_AVAIL="${{ steps.frontend_availability.outputs.available }}"
+          FE_HTTP="${{ steps.frontend_availability.outputs.http_code }}"
+          LAT="${{ steps.latency.outputs.latency_ms }}"
+          LAT_OK="${{ steps.latency.outputs.slo_latency_ok }}"
+          SLO_MS="${{ github.event.inputs.slo_latency_ms || '500' }}"
+          SLO_AVAIL="${{ github.event.inputs.slo_availability || '99.0' }}"
+          BUDGET_PCT="${{ steps.budget.outputs.error_budget_pct }}"
+          BUDGET_MIN="${{ steps.budget.outputs.error_budget_min }}"
+          SVC_HEALTHY="${{ steps.services.outputs.healthy }}"
+          SVC_TOTAL="${{ steps.services.outputs.total }}"
+
+          {
+            echo "## Raport SLI/SLO - Eventra - $(date '+%Y-%m-%d %H:%M UTC')"
+            echo ""
+            echo "### SLI-uri masurate"
+            echo ""
+            echo "| Indicator (SLI) | Valoare masurata | Obiectiv (SLO) | Stare |"
+            echo "|---|---|---|---|"
+
+            if [ "$BE_AVAIL" = "true" ]; then
+              echo "| Backend disponibilitate | HTTP $BE_HTTP (online) | >= ${SLO_AVAIL}% | :white_check_mark: |"
+            else
+              echo "| Backend disponibilitate | HTTP $BE_HTTP (offline) | >= ${SLO_AVAIL}% | :x: |"
+            fi
+
+            if [ "$FE_AVAIL" = "true" ]; then
+              echo "| Frontend disponibilitate | HTTP $FE_HTTP (online) | >= ${SLO_AVAIL}% | :white_check_mark: |"
+            else
+              echo "| Frontend disponibilitate | HTTP $FE_HTTP (offline) | >= ${SLO_AVAIL}% | :x: |"
+            fi
+
+            if [ "$LAT_OK" = "true" ]; then
+              echo "| Backend latenta | ${LAT}ms | < ${SLO_MS}ms | :white_check_mark: |"
+            else
+              echo "| Backend latenta | ${LAT}ms | < ${SLO_MS}ms | :warning: |"
+            fi
+
+            echo "| Service health | ${SVC_HEALTHY}/${SVC_TOTAL} healthy | ${SVC_TOTAL}/${SVC_TOTAL} | $([ "$SVC_HEALTHY" = "$SVC_TOTAL" ] && echo ':white_check_mark:' || echo ':warning:') |"
+            echo ""
+            echo "### Error Budget"
+            echo ""
+            echo "- **SLO disponibilitate:** ${SLO_AVAIL}%"
+            echo "- **Error Budget:** ${BUDGET_PCT}% ~ **${BUDGET_MIN} minute/luna**"
+            echo ""
+
+            if [ "$BE_AVAIL" = "true" ] && [ "$FE_AVAIL" = "true" ] && [ "$LAT_OK" = "true" ]; then
+              echo "> :green_circle: **Toate SLO-urile sunt respectate.** Error Budget intact."
+            else
+              echo "> :red_circle: **Atentie: SLO depasit.** Error Budget se consuma."
+            fi
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Final SLO check
+        run: |
+          if [ "${{ steps.backend_availability.outputs.available }}" = "false" ]; then
+            echo "FAIL: Backend is not available - SLO violated!"
+            exit 1
+          fi
+          if [ "${{ steps.frontend_availability.outputs.available }}" = "false" ]; then
+            echo "FAIL: Frontend is not available - SLO violated!"
+            exit 1
+          fi
+          echo "All critical SLOs are met."
