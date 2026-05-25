@@ -43,3 +43,9 @@ htmlcov/
 
 # Playwright MCP
 .playwright-mcp/
+
+# Academic docs (local only)
+docs/*.pdf
+docs/*.docx
+docs/*.md
+!docs/img/
