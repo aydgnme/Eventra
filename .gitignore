@@ -40,3 +40,6 @@ htmlcov/
 # vscode
 .vscode/
 .idea/
+
+# Playwright MCP
+.playwright-mcp/
