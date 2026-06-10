@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint src --ext .js,.jsx",
+    "lint": "eslint src",
     "preview": "vite preview",
     "prepare": "husky",
     "format": "prettier --write src",

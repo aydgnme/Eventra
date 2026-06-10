@@ -9,7 +9,7 @@ from config import Config
 db = SQLAlchemy()
 jwt = JWTManager()
 
-def create_app():
+def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object('config.Config')
 

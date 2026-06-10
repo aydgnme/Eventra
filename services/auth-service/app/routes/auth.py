@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import re
 import smtplib
 from email.mime.text import MIMEText
+from typing import TYPE_CHECKING
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 from flask_jwt_extended import (
     create_access_token,
     decode_token,
@@ -34,7 +37,7 @@ def _validate_password(password: str) -> bool:
 
 
 @auth_bp.route("/register", methods=["POST"])
-def register():
+def register() -> tuple[Response, int]:
     data = request.get_json()
 
     if not data:
@@ -100,7 +103,7 @@ def register():
 
 
 @auth_bp.route("/login", methods=["POST"])
-def login():
+def login() -> tuple[Response, int]:
     data = request.get_json()
 
     if not data:
@@ -152,7 +155,7 @@ def login():
 
 @auth_bp.route("/logout", methods=["POST"])
 @jwt_required()
-def logout():
+def logout() -> tuple[Response, int]:
     return jsonify({"message": "Logged out successfully"}), 200
 
 
@@ -163,7 +166,7 @@ def logout():
 
 @auth_bp.route("/me", methods=["GET"])
 @jwt_required()
-def me():
+def me() -> tuple[Response, int]:
     user_id = get_jwt_identity()
     user = db.session.get(User, int(user_id))
 
@@ -175,7 +178,7 @@ def me():
 
 @auth_bp.route("/me", methods=["PUT"])
 @jwt_required()
-def update_me():
+def update_me() -> tuple[Response, int]:
     user_id = get_jwt_identity()
     user = db.session.get(User, int(user_id))
 
@@ -216,7 +219,7 @@ def update_me():
 
 @auth_bp.route("/refresh", methods=["POST"])
 @jwt_required()
-def refresh():
+def refresh() -> tuple[Response, int]:
     user_id = get_jwt_identity()
     user = db.session.get(User, int(user_id))
 
@@ -236,7 +239,7 @@ def refresh():
 
 
 @auth_bp.route("/verify", methods=["POST"])
-def verify():
+def verify() -> tuple[Response, int]:
     data = request.get_json()
     if not data or not data.get("token"):
         return jsonify({"valid": False, "error": "Token is required"}), 400
@@ -270,7 +273,7 @@ def verify():
 
 
 @auth_bp.route("/google", methods=["POST"])
-def google_auth():
+def google_auth() -> tuple[Response, int]:
     data = request.get_json()
     if not data or not data.get("credential"):
         return (
@@ -358,7 +361,7 @@ def google_auth():
 
 
 @auth_bp.route("/google/client-id", methods=["GET"])
-def google_client_id():
+def google_client_id() -> tuple[Response, int]:
     client_id = current_app.config.get("GOOGLE_CLIENT_ID")
     return jsonify({"client_id": client_id}), 200
 
@@ -370,7 +373,7 @@ def google_client_id():
 
 @auth_bp.route("/change-password", methods=["POST"])
 @jwt_required()
-def change_password():
+def change_password() -> tuple[Response, int]:
     user_id = get_jwt_identity()
     user = db.session.get(User, int(user_id))
 
@@ -441,7 +444,7 @@ def change_password():
 
 
 @auth_bp.route("/forgot-password", methods=["POST"])
-def forgot_password():
+def forgot_password() -> tuple[Response, int]:
     data = request.get_json()
     generic_msg = "If this email is registered, a reset link has been sent"
 
@@ -492,7 +495,7 @@ def forgot_password():
 
 
 @auth_bp.route("/reset-password", methods=["POST"])
-def reset_password():
+def reset_password() -> tuple[Response, int]:
     data = request.get_json()
     if not data:
         return (

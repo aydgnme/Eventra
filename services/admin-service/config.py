@@ -20,9 +20,16 @@ def database_url(env_name, default):
     )
 
 
+def _require_env(name: str, default: str | None = None) -> str:
+    value = os.getenv(name, default)
+    if not value:
+        raise RuntimeError(f"Required environment variable {name} is not set")
+    return value
+
+
 class Config:
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
-    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-jwt-secret")
+    SECRET_KEY = _require_env("SECRET_KEY", None)
+    JWT_SECRET_KEY = _require_env("JWT_SECRET_KEY", None)
 
     # Admin service's own DB (for event review records)
     SQLALCHEMY_DATABASE_URI = database_url("DATABASE_URL", "sqlite:///admin.db")
@@ -44,6 +51,8 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-DO-NOT-USE-IN-PROD")
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-jwt-secret-DO-NOT-USE-IN-PROD")
 
 
 class ProductionConfig(Config):

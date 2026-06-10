@@ -1,8 +1,15 @@
 import os
 
 
+def _require_env(name: str, default: str | None = None) -> str:
+    value = os.getenv(name, default)
+    if not value:
+        raise RuntimeError(f"Required environment variable {name} is not set")
+    return value
+
+
 class Config:
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
+    SECRET_KEY = _require_env("SECRET_KEY", None)
     AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://localhost:5001")
     EVENT_SERVICE_URL = os.getenv("EVENT_SERVICE_URL", "http://localhost:5002")
     REGISTRATION_SERVICE_URL = os.getenv("REGISTRATION_SERVICE_URL", "http://localhost:5003")
@@ -14,6 +21,7 @@ class Config:
 
     # Rate limiting
     RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
+    MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", str(16 * 1024 * 1024)))  # 16 MB
     RATELIMIT_DEFAULT = "100 per minute"
     RATELIMIT_AUTH_LOGIN = "20 per minute"
     RATELIMIT_AUTH_REGISTER = "20 per minute"
@@ -24,6 +32,7 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-DO-NOT-USE-IN-PROD")
 
 
 class ProductionConfig(Config):

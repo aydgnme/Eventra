@@ -167,6 +167,11 @@ def create_app(config_name: str = None) -> Flask:
     }
 
     @app.before_request
+    def check_content_length():
+        if request.content_length and request.content_length > app.config.get("MAX_CONTENT_LENGTH", 16 * 1024 * 1024):
+            return jsonify({"error": "Request body too large"}), 413
+
+    @app.before_request
     def enforce_cloudflare():
         """In production, block requests that didn't pass through Cloudflare."""
         if request.method == "OPTIONS":
