@@ -48,4 +48,5 @@ htmlcov/
 docs/*.pdf
 docs/*.docx
 docs/*.md
+!docs/sonarqube-sast-report.md
 !docs/img/

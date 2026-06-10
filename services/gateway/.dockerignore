@@ -3,3 +3,9 @@ __pycache__/
 *.pyc
 .env
 *.db
+
+.venv/
+tests/
+docs/
+*.md
+!requirements.txt

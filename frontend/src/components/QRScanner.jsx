@@ -6,7 +6,7 @@ function nameFromEmail(email) {
   if (!email) return 'Unknown'
   const local = email.split('@')[0]
   return local.split('.')
-    .map((p) => p.replace(/\d+$/, ''))
+    .map((p) => p.replace(/\d+$/u, ''))
     .filter(Boolean)
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(' ') || local

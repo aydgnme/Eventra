@@ -17,7 +17,7 @@ function nameFromEmail(email) {
   const local = email.split('@')[0]
   const parts = local.split('.').filter(Boolean)
   const cleaned = parts
-    .map((p) => p.replace(/\d+$/, ''))
+    .map((p) => p.replace(/\d+$/u, ''))
     .filter(Boolean)
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
   return cleaned.join(' ') || local

@@ -1,5 +1,7 @@
 FROM python:3.12-slim AS base
 
+RUN addgroup --system app && adduser --system --ingroup app app
+
 WORKDIR /app
 
 COPY requirements.txt .
@@ -15,5 +17,7 @@ CMD ["python", "run.py"]
 # ── Production ──
 FROM base AS prod
 RUN chmod +x entrypoint.sh
+RUN chown -R app:app /app
+USER app
 EXPOSE 5002
 ENTRYPOINT ["./entrypoint.sh"]
