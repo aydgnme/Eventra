@@ -120,3 +120,8 @@ services:
     environment:
       - VITE_API_TARGET=http://gateway:5000
       - VITE_OAUTH_BASE=/api
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:5173/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
