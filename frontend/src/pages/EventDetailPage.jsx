@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  MapPin, Clock, Users, Tag, Wifi, ExternalLink, Star,
+  MapPin, Clock, Users, Tag, Wifi, ExternalLink, Star, Building2,
   ArrowLeft, Loader2, AlertCircle, CheckCircle2, Timer, QrCode,
 } from 'lucide-react'
 import Navbar from '../components/Navbar'
@@ -313,9 +313,9 @@ export default function EventDetailPage() {
   const qrValue = event.qr_code || `${window.location.origin}/events/${event.id}`
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-bg flex flex-col">
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="flex-1 max-w-7xl mx-auto px-4 py-6">
         {/* Back */}
         <button
           onClick={() => navigate('/events')}
@@ -347,6 +347,13 @@ export default function EventDetailPage() {
               </div>
 
               <h1 className="text-2xl font-bold text-fg mb-2">{event.title}</h1>
+
+              {event.organization_name && (
+                <div className="flex items-center gap-2 text-sm text-fg-2 mb-3">
+                  <Building2 className="w-4 h-4 text-brand-500 shrink-0" />
+                  <span>{event.organization_name}</span>
+                </div>
+              )}
 
               {event.description && (
                 <p className="text-fg-2 leading-relaxed mb-5 whitespace-pre-line">{event.description}</p>

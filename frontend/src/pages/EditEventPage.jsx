@@ -112,6 +112,7 @@ export default function EditEventPage() {
   if (event && !currentTitle) {
     reset({
       title: event.title ?? '',
+      organization_name: event.organization_name ?? '',
       description: event.description ?? '',
       start_datetime: toLocalInput(event.start_datetime),
       end_datetime: toLocalInput(event.end_datetime),
@@ -140,6 +141,7 @@ export default function EditEventPage() {
       capacity: values.capacity ? Number(values.capacity) : null,
       registration_deadline: values.registration_deadline || null,
       link_registration: values.link_registration || null,
+      organization_name: values.organization_name?.trim() || null,
     }
     updateMutation.mutate({ id, data: payload }, {
       onSuccess: () => {
@@ -174,9 +176,9 @@ export default function EditEventPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-bg flex flex-col">
       <Navbar />
-      <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="flex-1 max-w-3xl mx-auto px-4 py-6">
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate('/organizer')}
@@ -202,6 +204,16 @@ export default function EditEventPage() {
                   maxLength: { value: 255, message: 'Max 255 characters' },
                 })}
                 placeholder="Event title"
+                className={inputCls}
+              />
+            </Field>
+
+            <Field label="Organization / Company Name" error={errors.organization_name?.message}>
+              <input
+                {...register('organization_name', {
+                  maxLength: { value: 255, message: 'Max 255 characters' },
+                })}
+                placeholder="e.g. USV Science Club, TechCorp Inc."
                 className={inputCls}
               />
             </Field>

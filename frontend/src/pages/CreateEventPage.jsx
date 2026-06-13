@@ -39,6 +39,7 @@ export default function CreateEventPage() {
   } = useForm({
     defaultValues: {
       title: '',
+      organization_name: '',
       description: '',
       start_datetime: '',
       end_datetime: '',
@@ -67,6 +68,7 @@ export default function CreateEventPage() {
       capacity: values.capacity ? Number(values.capacity) : null,
       registration_deadline: values.registration_deadline || null,
       link_registration: values.link_registration || null,
+      organization_name: values.organization_name?.trim() || null,
     }
     createMutation.mutate(payload, {
       onSuccess: () => {
@@ -107,6 +109,16 @@ export default function CreateEventPage() {
                   maxLength: { value: 255, message: 'Max 255 characters' },
                 })}
                 placeholder="Event title"
+                className={inputCls}
+              />
+            </Field>
+
+            <Field label="Organization / Company Name" error={errors.organization_name?.message}>
+              <input
+                {...register('organization_name', {
+                  maxLength: { value: 255, message: 'Max 255 characters' },
+                })}
+                placeholder="e.g. USV Science Club, TechCorp Inc."
                 className={inputCls}
               />
             </Field>

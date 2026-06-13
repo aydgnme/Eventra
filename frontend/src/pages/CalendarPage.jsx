@@ -201,9 +201,9 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-bg flex flex-col">
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="flex-1 max-w-7xl mx-auto px-4 py-6">
         <header className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-fg">Event Calendar</h1>
           <p className="text-fg-3 text-sm mt-1">

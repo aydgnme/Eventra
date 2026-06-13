@@ -331,10 +331,10 @@ export default function EventListPage() {
   const hasActiveFilters = Object.values(filters).some((v) => v !== '' && v !== false)
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-bg flex flex-col">
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="flex-1 max-w-7xl mx-auto px-4 py-6">
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
           <div>

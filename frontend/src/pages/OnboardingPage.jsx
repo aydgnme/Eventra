@@ -59,6 +59,12 @@ export default function OnboardingPage() {
           <span className="font-bold text-lg text-fg tracking-tight">Eventra</span>
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            to="/about"
+            className="hidden sm:inline-flex px-4 py-2.5 rounded-xl text-fg-2 hover:text-fg text-sm font-medium transition-colors"
+          >
+            About
+          </Link>
           <button
             onClick={toggle}
             className="p-2 rounded-xl bg-surface/60 backdrop-blur border border-border/50 text-fg-2 hover:text-fg transition-colors"

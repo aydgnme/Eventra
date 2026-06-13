@@ -32,10 +32,10 @@ export default function OrganizerDashboard() {
   const events = data?.events ?? []
 
   return (
-    <div className="min-h-screen bg-bg text-fg">
+    <div className="min-h-screen bg-bg text-fg flex flex-col">
       <Navbar />
 
-      <main className="px-6 py-8 max-w-6xl mx-auto">
+      <main className="flex-1 px-6 py-8 max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-extrabold text-fg tracking-tight text-white">Organizer Dashboard</h1>
@@ -131,6 +131,9 @@ function EventRow({ event, onEdit, onDelete, onParticipants, onMaterials, onPrev
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-3 mb-2">
           <h2 className="font-bold text-fg text-lg truncate group-hover:text-brand-500 transition-colors">{event.title}</h2>
+          {event.organization_name && (
+            <span className="shrink-0 text-xs text-fg-2 truncate max-w-[200px]">{event.organization_name}</span>
+          )}
           <StatusPill event={event} />
           {event.category && (
              <span className="shrink-0 text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider bg-navy-800 text-usv-blue border border-navy-700">

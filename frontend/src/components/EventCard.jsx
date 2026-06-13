@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Clock, Users } from 'lucide-react'
+import { MapPin, Clock, Users, Building2 } from 'lucide-react'
 
 const CATEGORY_STYLES = {
   academic: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -52,6 +52,7 @@ function SpotsIndicator({ capacity, registeredCount }) {
 export default function EventCard({
   id,
   title,
+  organization_name,
   start_datetime,
   location,
   category,
@@ -81,9 +82,18 @@ export default function EventCard({
       </div>
 
       {/* Title */}
-      <h3 className="font-semibold text-fg leading-snug line-clamp-2 group-hover:text-brand-500 transition-colors mb-3">
+      <h3 className="font-semibold text-fg leading-snug line-clamp-2 group-hover:text-brand-500 transition-colors mb-1.5">
         {title}
       </h3>
+
+      {organization_name && (
+        <div className="flex items-center gap-1.5 text-xs text-fg-2 mb-3">
+          <Building2 className="w-3.5 h-3.5 shrink-0 text-brand-500" />
+          <span className="truncate">{organization_name}</span>
+        </div>
+      )}
+
+      {!organization_name && <div className="mb-1.5" />}
 
       {/* Meta */}
       <div className="flex flex-col gap-1.5">

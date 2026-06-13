@@ -142,13 +142,16 @@ export default function RegisterPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Full name */}
+            {/* Full name / Organization name */}
             <div className="space-y-1.5">
-              <label htmlFor="full_name" className="block text-sm font-medium text-fg-2">Full name</label>
+              <label htmlFor="full_name" className="block text-sm font-medium text-fg-2">
+                {role === 'organizer' ? 'Organization Name' : 'Full Name'}
+              </label>
               <div className="relative">
                 <input
                   id="full_name" name="full_name" type="text" autoComplete="name" required
-                  value={form.full_name} onChange={handleChange} placeholder="Jane Doe"
+                  value={form.full_name} onChange={handleChange}
+                  placeholder={role === 'organizer' ? 'USV Science Club' : 'Jane Doe'}
                   className={`${inputCls} pl-11`}
                 />
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-3" />

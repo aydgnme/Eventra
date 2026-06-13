@@ -255,6 +255,7 @@ def create_event():
         capacity=data.get("capacity"),
         qr_code=data.get("qr_code"),
         link_registration=data.get("link_registration"),
+        organization_name=data.get("organization_name", "").strip() or None,
         organizer_id=int(get_jwt_identity()),
         is_published=False,
     )
@@ -303,7 +304,7 @@ def update_event(event_id):
     event.start_datetime = new_start
     event.end_datetime = new_end
 
-    simple_fields = ["title", "description", "location", "capacity", "qr_code", "link_registration"]
+    simple_fields = ["title", "description", "location", "capacity", "qr_code", "link_registration", "organization_name"]
     for field in simple_fields:
         if field in data:
             value = data[field]

@@ -43,6 +43,9 @@ export default function EventPreviewModal({ event, onClose, onValidate, onReject
         <div className="sticky top-0 z-10 bg-surface border-b border-border px-6 py-4 flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-bold text-fg truncate">{event.title}</h2>
+            {event.organization_name && (
+              <p className="text-sm text-fg-2 mt-0.5">{event.organization_name}</p>
+            )}
             <p className="text-xs text-fg-3 mt-0.5">Event Preview</p>
           </div>
           <button

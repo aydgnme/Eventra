@@ -49,10 +49,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg text-fg font-sans">
+    <div className="min-h-screen bg-bg text-fg font-sans flex flex-col">
       <Navbar />
 
-      <main className="px-6 py-8 max-w-4xl mx-auto">
+      <main className="flex-1 px-6 py-8 max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-extrabold text-fg tracking-tight">
             {user?.full_name ? `Welcome, ${user.full_name.split(' ')[0]}` : 'My Dashboard'}

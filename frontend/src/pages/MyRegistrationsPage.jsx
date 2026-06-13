@@ -66,9 +66,9 @@ export default function MyRegistrationsPage() {
 
   return (
     <>
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-bg flex flex-col">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="flex-1 max-w-4xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-fg">My Registrations</h1>

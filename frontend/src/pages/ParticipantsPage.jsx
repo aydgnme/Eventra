@@ -218,9 +218,9 @@ export default function ParticipantsPage() {
 
   return (
     <>
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-bg flex flex-col">
       <Navbar />
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="flex-1 max-w-6xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <button

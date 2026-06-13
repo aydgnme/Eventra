@@ -71,6 +71,9 @@ function EventCard({ ev, actions }) {
       <div className="flex items-start justify-between gap-4 mb-3">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-fg text-base truncate">{ev.title}</h3>
+          {ev.organization_name && (
+            <p className="text-sm text-fg-2 mt-0.5">{ev.organization_name}</p>
+          )}
           <p className="text-sm text-fg-3 mt-0.5">
             by <span className="text-fg-2">{ev.organizer_name || 'Unknown'}</span>
             {ev.organizer_email && <span className="text-fg-3"> · {ev.organizer_email}</span>}
