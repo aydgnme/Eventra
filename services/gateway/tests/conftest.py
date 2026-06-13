@@ -6,6 +6,8 @@ Shared pytest fixtures for gateway tests.
 """
 import os
 
+os.environ["SECRET_KEY"] = "test-secret-key"
+os.environ["JWT_SECRET_KEY"] = "test-jwt-secret-key"
 os.environ["AUTH_SERVICE_URL"] = "http://auth-mock:5001"
 os.environ["EVENT_SERVICE_URL"] = "http://event-mock:5002"
 os.environ["REGISTRATION_SERVICE_URL"] = "http://reg-mock:5003"

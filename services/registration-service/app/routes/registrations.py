@@ -96,9 +96,10 @@ def _is_upcoming_event(event_info: dict) -> bool:
 
 def _require_organizer_role():
     """Returns error response if caller is not organizer or admin, else None."""
-    role_err = _require_organizer_role()
-    if role_err:
-        return role_err
+    claims = get_jwt()
+    role = claims.get("role", "")
+    if role not in ("organizer", "admin"):
+        return jsonify({"error": "Organizer or admin role required"}), 403
     return None
 
 
