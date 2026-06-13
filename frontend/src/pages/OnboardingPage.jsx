@@ -60,6 +60,12 @@ export default function OnboardingPage() {
         </div>
         <div className="flex items-center gap-3">
           <Link
+            to="/events"
+            className="hidden sm:inline-flex px-4 py-2.5 rounded-xl text-fg-2 hover:text-fg text-sm font-medium transition-colors"
+          >
+            Events
+          </Link>
+          <Link
             to="/about"
             className="hidden sm:inline-flex px-4 py-2.5 rounded-xl text-fg-2 hover:text-fg text-sm font-medium transition-colors"
           >

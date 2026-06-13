@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useState, useCallback } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   MapPin, Clock, Users, Tag, Wifi, ExternalLink, Star, Building2,
   ArrowLeft, Loader2, AlertCircle, CheckCircle2, Timer, QrCode,
@@ -56,7 +56,24 @@ function RegistrationSection({ event, statusData }) {
   const joinWaitlistMutation = useJoinWaitlist()
   const leaveWaitlistMutation = useLeaveWaitlist()
 
-  if (!user || user.role !== 'student') return null
+  if (user && user.role !== 'student') return null
+
+  if (!user) {
+    return (
+      <div className="bg-surface border border-border rounded-xl p-5 text-center space-y-3">
+        <p className="text-fg-2 text-sm">Sign in to register for this event</p>
+        <Link
+          to="/login"
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-white text-sm font-medium transition-colors shadow-sm"
+        >
+          Sign in
+        </Link>
+        <p className="text-fg-3 text-xs">
+          Don't have an account? <Link to="/register" className="text-brand-500 hover:underline">Create one free</Link>
+        </p>
+      </div>
+    )
+  }
 
   const status = statusData?.status
   const isFull = statusData?.event?.is_full

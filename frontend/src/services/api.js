@@ -25,8 +25,11 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401 && !err.config.url.includes('/auth/login')) {
+      const hadToken = !!localStorage.getItem('eventra_token')
       localStorage.removeItem('eventra_token')
-      window.location.href = '/login'
+      if (hadToken) {
+        window.location.href = '/login'
+      }
     }
     const message =
       err.response?.data?.error ||
