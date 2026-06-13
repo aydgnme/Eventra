@@ -33,6 +33,8 @@ class Event(db.Model):
     qr_code = db.Column(db.String(500), nullable=True)
     link_registration = db.Column(db.String(500), nullable=True)
     organization_name = db.Column(db.String(255), nullable=True)
+    is_paid = db.Column(db.Boolean, default=False, nullable=False)
+    ticket_price = db.Column(db.Numeric(10, 2), nullable=True)
     is_published = db.Column(db.Boolean, default=False, nullable=False)
     organizer_id = db.Column(db.Integer, nullable=False, index=True)
     created_at = db.Column(
@@ -61,6 +63,8 @@ class Event(db.Model):
             "qr_code": self.qr_code,
             "link_registration": self.link_registration,
             "organization_name": self.organization_name,
+            "is_paid": self.is_paid,
+            "ticket_price": float(self.ticket_price) if self.ticket_price is not None else None,
             "is_published": self.is_published,
             "organizer_id": self.organizer_id,
             "created_at": self.created_at.isoformat(),

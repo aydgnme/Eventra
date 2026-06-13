@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Clock, Users, Building2 } from 'lucide-react'
+import { MapPin, Clock, Users, Building2, DollarSign } from 'lucide-react'
 
 const CATEGORY_STYLES = {
   academic: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -59,6 +59,8 @@ export default function EventCard({
   participation_mode,
   capacity,
   registered_count,
+  is_paid,
+  ticket_price,
 }) {
   const navigate = useNavigate()
 
@@ -77,6 +79,12 @@ export default function EventCard({
         {participation_mode && (
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${MODE_STYLES[participation_mode] ?? 'bg-surface-alt text-fg-3 border border-border'}`}>
             {participation_mode}
+          </span>
+        )}
+        {is_paid && (
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 flex items-center gap-1">
+            <DollarSign className="w-3 h-3" />
+            {ticket_price != null ? `${ticket_price} RON` : 'Paid'}
           </span>
         )}
       </div>

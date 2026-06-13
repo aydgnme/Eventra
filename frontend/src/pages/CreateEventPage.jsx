@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useForm, useFieldArray, useWatch } from 'react-hook-form'
-import { ArrowLeft, Plus, Trash2, Loader2, AlertCircle, Info } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Loader2, AlertCircle, Info, DollarSign } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import { useToast } from '../context/ToastContext'
 import useDocumentTitle from '../hooks/useDocumentTitle'
@@ -49,6 +49,8 @@ export default function CreateEventPage() {
       capacity: '',
       registration_deadline: '',
       link_registration: '',
+      is_paid: false,
+      ticket_price: '',
       sponsors: [],
     },
   })
@@ -59,6 +61,7 @@ export default function CreateEventPage() {
   })
 
   const startDatetime = useWatch({ control, name: 'start_datetime' })
+  const isPaid = useWatch({ control, name: 'is_paid' })
 
   const createMutation = useCreateEvent()
 
@@ -69,6 +72,8 @@ export default function CreateEventPage() {
       registration_deadline: values.registration_deadline || null,
       link_registration: values.link_registration || null,
       organization_name: values.organization_name?.trim() || null,
+      is_paid: values.is_paid || false,
+      ticket_price: values.is_paid && values.ticket_price ? Number(values.ticket_price) : null,
     }
     createMutation.mutate(payload, {
       onSuccess: () => {
@@ -222,6 +227,48 @@ export default function CreateEventPage() {
                 className={inputCls}
               />
             </Field>
+
+            {/* Paid event toggle */}
+            <div className="pt-2 border-t border-border">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  {...register('is_paid')}
+                  className="w-4 h-4 rounded border-border text-brand-500 focus:ring-brand-500"
+                />
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-fg-3" />
+                  <span className="text-sm font-medium text-fg">This is a paid event</span>
+                </div>
+              </label>
+            </div>
+
+            {isPaid && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Ticket Price (RON)" required error={errors.ticket_price?.message}>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    {...register('ticket_price', {
+                      required: isPaid ? 'Price is required for paid events' : false,
+                      min: { value: 0, message: 'Must be non-negative' },
+                    })}
+                    placeholder="0.00"
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+            )}
+
+            {isPaid && (
+              <div className="flex items-start gap-3 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
+                <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-fg-2">
+                  Paid events require an external registration link above. Students will be redirected there to complete payment and registration.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Sponsors */}

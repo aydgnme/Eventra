@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   MapPin, Clock, Users, Tag, Wifi, ExternalLink, Star, Building2,
-  ArrowLeft, Loader2, AlertCircle, CheckCircle2, Timer, QrCode,
+  ArrowLeft, Loader2, AlertCircle, CheckCircle2, Timer, QrCode, DollarSign,
 } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
@@ -57,6 +57,40 @@ function RegistrationSection({ event, statusData }) {
   const leaveWaitlistMutation = useLeaveWaitlist()
 
   if (user && user.role !== 'student') return null
+
+  if (event.is_paid) {
+    return (
+      <div className="bg-surface border border-border rounded-xl p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <DollarSign className="w-5 h-5 text-amber-500 shrink-0" />
+          <span className="font-medium text-fg">Paid Event</span>
+          {event.ticket_price != null && (
+            <span className="ml-auto text-lg font-bold text-amber-500">{event.ticket_price} RON</span>
+          )}
+        </div>
+        {event.link_registration ? (
+          <>
+            <p className="text-fg-2 text-sm">
+              Registration and payment are handled externally. Click below to register and complete payment.
+            </p>
+            <a
+              href={event.link_registration}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-medium transition-colors shadow-sm"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Register & Pay
+            </a>
+          </>
+        ) : (
+          <p className="text-fg-2 text-sm">
+            Please contact the event organizer for registration and payment details.
+          </p>
+        )}
+      </div>
+    )
+  }
 
   if (!user) {
     return (
@@ -405,9 +439,17 @@ export default function EventDetailPage() {
                     </span>
                   </div>
                 )}
+                {event.is_paid && (
+                  <div className="flex items-center gap-3">
+                    <DollarSign className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span className="text-fg font-medium">
+                      {event.ticket_price != null ? `${event.ticket_price} RON` : 'Paid Event'}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {event.link_registration && (
+              {event.link_registration && !event.is_paid && (
                 <a
                   href={event.link_registration}
                   target="_blank"

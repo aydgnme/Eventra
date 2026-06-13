@@ -244,6 +244,18 @@ def create_event():
         except ValueError:
             return jsonify({"error": f"Invalid participation_mode. Valid: {_VALID_MODES}"}), 400
 
+    is_paid = bool(data.get("is_paid", False))
+    ticket_price = data.get("ticket_price")
+    if is_paid and ticket_price is not None:
+        try:
+            ticket_price = float(ticket_price)
+            if ticket_price < 0:
+                return jsonify({"error": "ticket_price must be non-negative"}), 400
+        except (ValueError, TypeError):
+            return jsonify({"error": "ticket_price must be a number"}), 400
+    elif not is_paid:
+        ticket_price = None
+
     event = Event(
         title=title,
         description=data.get("description"),
@@ -256,6 +268,8 @@ def create_event():
         qr_code=data.get("qr_code"),
         link_registration=data.get("link_registration"),
         organization_name=data.get("organization_name", "").strip() or None,
+        is_paid=is_paid,
+        ticket_price=ticket_price,
         organizer_id=int(get_jwt_identity()),
         is_published=False,
     )
@@ -309,6 +323,19 @@ def update_event(event_id):
         if field in data:
             value = data[field]
             setattr(event, field, value.strip() if isinstance(value, str) else value)
+
+    if "is_paid" in data:
+        event.is_paid = bool(data["is_paid"])
+        if not event.is_paid:
+            event.ticket_price = None
+    if "ticket_price" in data and event.is_paid:
+        try:
+            price = float(data["ticket_price"]) if data["ticket_price"] is not None else None
+            if price is not None and price < 0:
+                return jsonify({"error": "ticket_price must be non-negative"}), 400
+            event.ticket_price = price
+        except (ValueError, TypeError):
+            return jsonify({"error": "ticket_price must be a number"}), 400
 
     enum_err = _apply_enum_fields(event, data)
     if enum_err:
