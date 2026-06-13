@@ -62,26 +62,29 @@ def _get_real_ip() -> str:
 limiter = Limiter(key_func=_get_real_ip)
 
 
+def _is_public_get() -> bool:
+    """Check if the current GET request targets a public route."""
+    path = request.path
+    if path.rstrip("/") == "/events":
+        return True
+    if path.startswith("/events/"):
+        parts = path.split("/")
+        if len(parts) >= 3 and parts[2].isdigit():
+            return True
+    if path == "/registrations/counts":
+        return True
+    if path.startswith("/registrations/event/") and path.endswith("/count"):
+        return True
+    if path.startswith("/auth/oauth/"):
+        return True
+    return False
+
+
 def _is_public() -> bool:
     if (request.method, request.path) in PUBLIC_ROUTES:
         return True
-    # Event listing: GET /events or GET /events/
-    if request.method == "GET" and request.path.rstrip("/") == "/events":
-        return True
-    # Event detail & sub-resources: GET /events/<numeric_id>/...
-    # Excludes named routes like /events/mine which require auth
-    if request.method == "GET" and request.path.startswith("/events/"):
-        parts = request.path.split("/")
-        if len(parts) >= 3 and parts[2].isdigit():
-            return True
-    # Registration counts — public (no personal data, needed for event listing/detail)
-    if request.method == "GET" and request.path == "/registrations/counts":
-        return True
-    if request.method == "GET" and request.path.startswith("/registrations/event/") and request.path.endswith("/count"):
-        return True
-    # Google OAuth flow: no JWT at this point, browser-driven redirect
-    if request.method == "GET" and request.path.startswith("/auth/oauth/"):
-        return True
+    if request.method == "GET":
+        return _is_public_get()
     return False
 
 
@@ -92,6 +95,39 @@ def _check_role_restriction():
         if request.method == method and pattern.match(request.path):
             if g.user_role not in allowed_roles:
                 return jsonify({"error": "Insufficient permissions"}), 403
+    return None
+
+
+def _verify_token(auth_url: str):
+    """Verify JWT token with the auth service. Sets g.user_* on success.
+    Returns an error response tuple on failure, or None on success."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Missing authorization token"}), 401
+
+    token = auth_header[7:]
+    try:
+        resp = requests.post(
+            f"{auth_url}/auth/verify",
+            json={"token": token},
+            timeout=5,
+        )
+        data = resp.json()
+        if not data.get("valid"):
+            return jsonify({"error": "Invalid or expired token"}), 401
+        g.user_id = data.get("user_id")
+        g.user_role = data.get("role")
+        g.user_email = data.get("email", "")
+    except Exception:
+        return jsonify({"error": "Invalid or expired token"}), 401
+    return None
+
+
+def _check_admin_prefix():
+    """Returns error response if non-admin tries to access admin prefix."""
+    if any(request.path.startswith(p) for p in ADMIN_ONLY_PREFIXES):
+        if g.user_role != "admin":
+            return jsonify({"error": "Insufficient permissions"}), 403
     return None
 
 
@@ -183,41 +219,17 @@ def create_app(config_name: str = None) -> Flask:
 
     @app.before_request
     def authenticate():
-        if request.method == "OPTIONS":
-            return
-        if _is_public():
+        if request.method == "OPTIONS" or _is_public():
             return
 
-        auth_header = request.headers.get("Authorization", "")
-        if not auth_header.startswith("Bearer "):
-            return jsonify({"error": "Missing authorization token"}), 401
+        token_error = _verify_token(auth_url)
+        if token_error:
+            return token_error
 
-        token = auth_header[7:]
+        admin_error = _check_admin_prefix()
+        if admin_error:
+            return admin_error
 
-        # Verify token with Auth Service
-        try:
-            resp = requests.post(
-                f"{auth_url}/auth/verify",
-                json={"token": token},
-                timeout=5,
-            )
-            data = resp.json()
-
-            if not data.get("valid"):
-                return jsonify({"error": "Invalid or expired token"}), 401
-
-            g.user_id = data.get("user_id")
-            g.user_role = data.get("role")
-            g.user_email = data.get("email", "")
-        except Exception:
-            return jsonify({"error": "Invalid or expired token"}), 401
-
-        # Admin-only prefix guard
-        if any(request.path.startswith(p) for p in ADMIN_ONLY_PREFIXES):
-            if g.user_role != "admin":
-                return jsonify({"error": "Insufficient permissions"}), 403
-
-        # Role-restricted route check
         role_error = _check_role_restriction()
         if role_error:
             return role_error

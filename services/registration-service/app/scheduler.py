@@ -77,6 +77,52 @@ def _send_reminders(app):
                 logger.warning("Reminder job error for reg %s: %s", reg.id, exc)
 
 
+def _process_unconfirmed_reg(reg, now, db, Registration, RegistrationStatus,
+                             send_promotion_email, send_spot_released_email,
+                             get_event, EventNotFound, EventServiceUnavailable):
+    """Cancel a single unconfirmed registration and promote next waitlisted user."""
+    try:
+        event = get_event(reg.event_id)
+        raw = event.get("start_datetime", "")
+        if not raw:
+            return
+        start_dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if start_dt <= now:
+            return
+
+        event_title = event.get("title", f"Event #{reg.event_id}")
+
+        if reg.user_email:
+            send_spot_released_email(reg.user_email, event_title)
+
+        reg.status = RegistrationStatus.CANCELLED
+        reg.cancelled_at = now
+
+        next_up = (
+            Registration.query
+            .filter_by(event_id=reg.event_id, status=RegistrationStatus.WAITLISTED)
+            .order_by(Registration.registered_at.asc())
+            .first()
+        )
+        if next_up:
+            next_up.status = RegistrationStatus.REGISTERED
+            next_up.confirmation_sent_at = None
+            next_up.confirmed_at = None
+            if next_up.user_email:
+                send_promotion_email(next_up.user_email, event_title)
+
+        db.session.commit()
+        logger.info(
+            "Unconfirmed reg %s cancelled; promoted %s",
+            reg.id,
+            next_up.id if next_up else "nobody",
+        )
+    except (EventNotFound, EventServiceUnavailable):
+        pass
+    except Exception as exc:
+        logger.warning("Promote job error for reg %s: %s", reg.id, exc)
+
+
 def _promote_unconfirmed(app):
     with app.app_context():
         from app import db
@@ -87,7 +133,6 @@ def _promote_unconfirmed(app):
         now = datetime.now(timezone.utc)
         deadline = now - timedelta(hours=24)
 
-        # Registrations where reminder was sent > 24 h ago and user didn't confirm
         unconfirmed = (
             Registration.query
             .filter(
@@ -100,48 +145,8 @@ def _promote_unconfirmed(app):
         )
 
         for reg in unconfirmed:
-            try:
-                event = get_event(reg.event_id)
-                raw = event.get("start_datetime", "")
-                if not raw:
-                    continue
-                start_dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-
-                # Only act if event hasn't started yet
-                if start_dt <= now:
-                    continue
-
-                event_title = event.get("title", f"Event #{reg.event_id}")
-
-                # Notify unconfirmed user
-                if reg.user_email:
-                    send_spot_released_email(reg.user_email, event_title)
-
-                # Cancel their spot
-                reg.status = RegistrationStatus.CANCELLED
-                reg.cancelled_at = now
-
-                # Promote next waitlisted (FIFO)
-                next_up = (
-                    Registration.query
-                    .filter_by(event_id=reg.event_id, status=RegistrationStatus.WAITLISTED)
-                    .order_by(Registration.registered_at.asc())
-                    .first()
-                )
-                if next_up:
-                    next_up.status = RegistrationStatus.REGISTERED
-                    next_up.confirmation_sent_at = None
-                    next_up.confirmed_at = None
-                    if next_up.user_email:
-                        send_promotion_email(next_up.user_email, event_title)
-
-                db.session.commit()
-                logger.info(
-                    "Unconfirmed reg %s cancelled; promoted %s",
-                    reg.id,
-                    next_up.id if next_up else "nobody",
-                )
-            except (EventNotFound, EventServiceUnavailable):
-                pass
-            except Exception as exc:
-                logger.warning("Promote job error for reg %s: %s", reg.id, exc)
+            _process_unconfirmed_reg(
+                reg, now, db, Registration, RegistrationStatus,
+                send_promotion_email, send_spot_released_email,
+                get_event, EventNotFound, EventServiceUnavailable,
+            )

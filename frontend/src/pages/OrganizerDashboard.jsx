@@ -7,7 +7,9 @@ import {
 } from 'lucide-react'
 import { useMyEvents, useDeleteEvent } from '../hooks/useEvents'
 import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 import { useToast } from '../context/ToastContext'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import ConfirmModal from '../components/ConfirmModal'
 
 function formatDate(dt) {
@@ -19,6 +21,7 @@ function formatDate(dt) {
 }
 
 export default function OrganizerDashboard() {
+  useDocumentTitle('My Events')
   const navigate = useNavigate()
   const { addToast } = useToast()
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -95,6 +98,7 @@ export default function OrganizerDashboard() {
         confirmLabel={deleteMutation.isPending ? 'Deleting...' : 'Delete Event'}
         danger={true}
       />
+      <Footer />
     </div>
   )
 }

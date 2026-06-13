@@ -28,6 +28,13 @@ def _event_title(event_id: int) -> str:
 
 registrations_bp = Blueprint("registrations", __name__)
 
+MSG_EVENT_NOT_FOUND = "Event not found"
+MSG_ALREADY_WAITLISTED = "You are already on the waitlist"
+MSG_ALREADY_REGISTERED = "You are already registered for this event"
+MSG_REGISTRATION_NOT_FOUND = "Registration not found"
+MSG_ORGANIZERS_ONLY = "Organizers and admins only"
+_UTC_SUFFIX = "+00:00"
+
 
 def _make_qr_png(token: str) -> bytes:
     qr = qrcode.QRCode(version=1, box_size=10, border=4)
@@ -43,10 +50,57 @@ def _fmt_dt(raw: str | None) -> str:
     if not raw:
         return ""
     try:
-        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(raw.replace("Z", _UTC_SUFFIX))
         return dt.strftime("%A, %B %d %Y at %H:%M")
     except (ValueError, TypeError):
         return raw
+
+def _check_duplicate(user_id: int, event_id: int):
+    """Check if user already has an active registration. Returns (existing_reg, error_response)."""
+    existing = Registration.query.filter_by(user_id=user_id, event_id=event_id).first()
+    if existing and existing.status not in (RegistrationStatus.CANCELLED,):
+        if existing.status == RegistrationStatus.WAITLISTED:
+            return existing, (jsonify({"error": MSG_ALREADY_WAITLISTED, "status": 400}), 400)
+        return existing, (jsonify({"error": MSG_ALREADY_REGISTERED, "status": 400}), 400)
+    return existing, None
+
+
+def _enrich_with_event(event_id: int) -> dict:
+    """Fetch event info for a registration. Returns minimal dict on failure."""
+    try:
+        event = get_event(event_id)
+        return {
+            "id": event.get("id"),
+            "title": event.get("title"),
+            "start_datetime": event.get("start_datetime"),
+            "end_datetime": event.get("end_datetime"),
+            "location": event.get("location"),
+            "category": event.get("category"),
+            "status": event.get("status"),
+        }
+    except Exception:
+        return {"id": event_id}
+
+
+def _is_upcoming_event(event_info: dict) -> bool:
+    """Check if event start_datetime is in the future."""
+    start_dt = event_info.get("start_datetime")
+    if not start_dt:
+        return True
+    try:
+        start = datetime.fromisoformat(start_dt.replace("Z", _UTC_SUFFIX))
+        return start >= datetime.now(timezone.utc)
+    except (ValueError, TypeError):
+        return True
+
+
+def _require_organizer_role():
+    """Returns error response if caller is not organizer or admin, else None."""
+    role_err = _require_organizer_role()
+    if role_err:
+        return role_err
+    return None
+
 
 _ACTIVE_STATUSES = (
     RegistrationStatus.REGISTERED,
@@ -90,7 +144,7 @@ def _validate_event_for_registration(event):
     end_dt = event.get("end_datetime")
     if end_dt:
         try:
-            end = datetime.fromisoformat(end_dt.replace("Z", "+00:00"))
+            end = datetime.fromisoformat(end_dt.replace("Z", _UTC_SUFFIX))
             if end < datetime.now(timezone.utc):
                 return {"error": "Event has already ended", "status": 400}, 400
         except (ValueError, TypeError):
@@ -100,7 +154,7 @@ def _validate_event_for_registration(event):
     deadline = event.get("registration_deadline")
     if deadline:
         try:
-            dl = datetime.fromisoformat(deadline.replace("Z", "+00:00"))
+            dl = datetime.fromisoformat(deadline.replace("Z", _UTC_SUFFIX))
             if dl < datetime.now(timezone.utc):
                 return {"error": "Registration deadline has passed", "status": 400}, 400
         except (ValueError, TypeError):
@@ -131,7 +185,7 @@ def register_for_event():
     try:
         event = get_event(event_id)
     except EventNotFound:
-        return jsonify({"error": "Event not found", "status": 404}), 404
+        return jsonify({"error": MSG_EVENT_NOT_FOUND, "status": 404}), 404
     except EventServiceUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
 
@@ -141,19 +195,13 @@ def register_for_event():
         return jsonify(validation_error[0]), validation_error[1]
 
     # Duplicate check
-    existing = Registration.query.filter_by(
-        user_id=user_id, event_id=event_id
-    ).first()
-    if existing and existing.status not in (RegistrationStatus.CANCELLED,):
-        if existing.status == RegistrationStatus.WAITLISTED:
-            return jsonify({"error": "You are already on the waitlist", "status": 400}), 400
-        return jsonify({"error": "You are already registered for this event", "status": 400}), 400
+    existing, dup_err = _check_duplicate(user_id, event_id)
+    if dup_err:
+        return dup_err
 
     # Capacity check with row-level locking to prevent race conditions
     capacity = event.get("capacity")
-    is_full = capacity is not None and _registered_count(event_id, lock=True) >= capacity
-
-    if is_full:
+    if capacity is not None and _registered_count(event_id, lock=True) >= capacity:
         return jsonify({
             "error": "Event is at full capacity. You can join the waitlist.",
             "status": 400,
@@ -221,7 +269,7 @@ def register_for_event_by_path(event_id):
     try:
         event = get_event(event_id)
     except EventNotFound:
-        return jsonify({"error": "Event not found", "status": 404}), 404
+        return jsonify({"error": MSG_EVENT_NOT_FOUND, "status": 404}), 404
     except EventServiceUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
 
@@ -229,19 +277,13 @@ def register_for_event_by_path(event_id):
     if validation_error:
         return jsonify(validation_error[0]), validation_error[1]
 
-    existing = Registration.query.filter_by(
-        user_id=user_id, event_id=event_id
-    ).first()
-    if existing and existing.status not in (RegistrationStatus.CANCELLED,):
-        if existing.status == RegistrationStatus.WAITLISTED:
-            return jsonify({"error": "You are already on the waitlist", "status": 400}), 400
-        return jsonify({"error": "You are already registered for this event", "status": 400}), 400
+    existing, dup_err = _check_duplicate(user_id, event_id)
+    if dup_err:
+        return dup_err
 
     # Capacity check with row-level locking to prevent race conditions
     capacity = event.get("capacity")
-    is_full = capacity is not None and _registered_count(event_id, lock=True) >= capacity
-
-    if is_full:
+    if capacity is not None and _registered_count(event_id, lock=True) >= capacity:
         return jsonify({
             "error": "Event is at full capacity. You can join the waitlist.",
             "status": 400,
@@ -372,7 +414,7 @@ def registration_status(event_id):
         try:
             event = get_event(event_id)
         except EventNotFound:
-            return jsonify({"error": "Event not found", "status": 404}), 404
+            return jsonify({"error": MSG_EVENT_NOT_FOUND, "status": 404}), 404
         except EventServiceUnavailable as exc:
             return jsonify({"error": str(exc)}), 503
 
@@ -429,7 +471,7 @@ def get_registration(registration_id):
 
     reg = db.session.get(Registration, registration_id)
     if not reg:
-        return jsonify({"error": "Registration not found"}), 404
+        return jsonify({"error": MSG_REGISTRATION_NOT_FOUND}), 404
 
     if reg.user_id != user_id and claims.get("role") not in ("organizer", "admin"):
         return jsonify({"error": "Not authorized"}), 403
@@ -466,33 +508,14 @@ def my_registrations():
 
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
+    upcoming_only = (request.args.get("upcoming") or "").lower() == "true"
     result = []
     for r in pagination.items:
         data = r.to_dict()
-        try:
-            event = get_event(r.event_id)
-            data["event"] = {
-                "id": event.get("id"),
-                "title": event.get("title"),
-                "start_datetime": event.get("start_datetime"),
-                "end_datetime": event.get("end_datetime"),
-                "location": event.get("location"),
-                "category": event.get("category"),
-                "status": event.get("status"),
-            }
-            # Filter by upcoming (only future events)
-            upcoming = request.args.get("upcoming")
-            if upcoming and upcoming.lower() == "true":
-                start_dt = event.get("start_datetime")
-                if start_dt:
-                    try:
-                        start = datetime.fromisoformat(start_dt.replace("Z", "+00:00"))
-                        if start < datetime.now(timezone.utc):
-                            continue
-                    except (ValueError, TypeError):
-                        pass
-        except Exception:
-            data["event"] = {"id": r.event_id}
+        event_info = _enrich_with_event(r.event_id)
+        data["event"] = event_info
+        if upcoming_only and not _is_upcoming_event(event_info):
+            continue
         result.append(data)
 
     return jsonify({
@@ -517,7 +540,7 @@ def join_waitlist(event_id):
     try:
         event = get_event(event_id)
     except EventNotFound:
-        return jsonify({"error": "Event not found", "status": 404}), 404
+        return jsonify({"error": MSG_EVENT_NOT_FOUND, "status": 404}), 404
     except EventServiceUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
 
@@ -533,13 +556,9 @@ def join_waitlist(event_id):
             "status": 400,
         }), 400
 
-    existing = Registration.query.filter_by(
-        user_id=user_id, event_id=event_id
-    ).first()
-    if existing and existing.status != RegistrationStatus.CANCELLED:
-        if existing.status == RegistrationStatus.WAITLISTED:
-            return jsonify({"error": "You are already on the waitlist", "status": 400}), 400
-        return jsonify({"error": "You are already registered for this event", "status": 400}), 400
+    existing, dup_err = _check_duplicate(user_id, event_id)
+    if dup_err:
+        return dup_err
 
     if existing:
         reg = existing
@@ -617,9 +636,9 @@ def leave_waitlist(event_id):
 @registrations_bp.route("/<int:event_id>/waitlist", methods=["GET"])
 @jwt_required()
 def view_waitlist(event_id):
-    claims = get_jwt()
-    if claims.get("role") not in ("organizer", "admin"):
-        return jsonify({"error": "Organizers and admins only"}), 403
+    role_err = _require_organizer_role()
+    if role_err:
+        return role_err
 
     waitlisted = (
         Registration.query
@@ -652,9 +671,9 @@ def view_waitlist(event_id):
 @registrations_bp.route("/<int:event_id>/participants", methods=["GET"])
 @jwt_required()
 def list_participants(event_id):
-    claims = get_jwt()
-    if claims.get("role") not in ("organizer", "admin"):
-        return jsonify({"error": "Organizers and admins only"}), 403
+    role_err = _require_organizer_role()
+    if role_err:
+        return role_err
 
     query = Registration.query.filter_by(event_id=event_id)
 
@@ -743,9 +762,9 @@ def list_participants(event_id):
 @registrations_bp.route("/<int:event_id>/participants/export", methods=["GET"])
 @jwt_required()
 def export_participants(event_id):
-    claims = get_jwt()
-    if claims.get("role") not in ("organizer", "admin"):
-        return jsonify({"error": "Organizers and admins only"}), 403
+    role_err = _require_organizer_role()
+    if role_err:
+        return role_err
 
     query = Registration.query.filter_by(event_id=event_id)
 
@@ -796,9 +815,9 @@ def export_participants(event_id):
 @registrations_bp.route("/<int:event_id>/checkin/<int:user_id>", methods=["POST"])
 @jwt_required()
 def checkin_participant(event_id, user_id):
-    claims = get_jwt()
-    if claims.get("role") not in ("organizer", "admin"):
-        return jsonify({"error": "Organizers and admins only"}), 403
+    role_err = _require_organizer_role()
+    if role_err:
+        return role_err
 
     reg = Registration.query.filter_by(
         user_id=user_id, event_id=event_id
@@ -835,9 +854,9 @@ def checkin_participant(event_id, user_id):
 @registrations_bp.route("/<int:event_id>/checkin/<int:user_id>", methods=["DELETE"])
 @jwt_required()
 def undo_checkin(event_id, user_id):
-    claims = get_jwt()
-    if claims.get("role") not in ("organizer", "admin"):
-        return jsonify({"error": "Organizers and admins only"}), 403
+    role_err = _require_organizer_role()
+    if role_err:
+        return role_err
 
     reg = Registration.query.filter_by(
         user_id=user_id, event_id=event_id
@@ -870,13 +889,13 @@ def undo_checkin(event_id, user_id):
 @registrations_bp.route("/<int:event_id>/reject/<int:user_id>", methods=["POST"])
 @jwt_required()
 def reject_participant(event_id, user_id):
-    claims = get_jwt()
-    if claims.get("role") not in ("organizer", "admin"):
-        return jsonify({"error": "Organizers and admins only"}), 403
+    role_err = _require_organizer_role()
+    if role_err:
+        return role_err
 
     reg = Registration.query.filter_by(user_id=user_id, event_id=event_id).first()
     if not reg:
-        return jsonify({"error": "Registration not found"}), 404
+        return jsonify({"error": MSG_REGISTRATION_NOT_FOUND}), 404
 
     if reg.status == RegistrationStatus.CANCELLED:
         return jsonify({"error": "Already cancelled"}), 400
@@ -923,9 +942,9 @@ def reject_participant(event_id, user_id):
 @registrations_bp.route("/event/<int:event_id>", methods=["GET"])
 @jwt_required()
 def event_registrations(event_id):
-    claims = get_jwt()
-    if claims.get("role") not in ("organizer", "admin"):
-        return jsonify({"error": "Organizers and admins only"}), 403
+    role_err = _require_organizer_role()
+    if role_err:
+        return role_err
 
     regs = (
         Registration.query
@@ -1002,7 +1021,7 @@ def cancel_registration(registration_id):
 
     reg = db.session.get(Registration, registration_id)
     if not reg:
-        return jsonify({"error": "Registration not found"}), 404
+        return jsonify({"error": MSG_REGISTRATION_NOT_FOUND}), 404
 
     if reg.user_id != user_id and claims.get("role") != "admin":
         return jsonify({"error": "Not authorized"}), 403
@@ -1104,9 +1123,9 @@ def get_ticket(event_id):
 @registrations_bp.route("/checkin/qr/<token>", methods=["POST"])
 @jwt_required()
 def checkin_by_qr(token):
-    claims = get_jwt()
-    if claims.get("role") not in ("organizer", "admin"):
-        return jsonify({"error": "Organizers and admins only"}), 403
+    role_err = _require_organizer_role()
+    if role_err:
+        return role_err
 
     reg = Registration.query.filter_by(qr_token=token).first()
     if not reg:

@@ -6,6 +6,7 @@ import FileTypeIcon from '../components/FileTypeIcon'
 import ConfirmModal from '../components/ConfirmModal'
 import { useToast } from '../context/ToastContext'
 import { useEvent, useMaterials, useUploadMaterial, useDeleteMaterial } from '../hooks/useEvents'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { apiUrl } from '../services/api'
 
 const ACCEPTED = '.pdf,.png,.jpg,.jpeg,.pptx'
@@ -26,6 +27,7 @@ function formatDate(dt) {
 }
 
 export default function MaterialsPage() {
+  useDocumentTitle('Materials')
   const { id } = useParams()
   const navigate = useNavigate()
   const { addToast } = useToast()

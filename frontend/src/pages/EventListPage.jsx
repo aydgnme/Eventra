@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react'
 import { Search, Filter, Calendar, List, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 import EventCard from '../components/EventCard'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useEvents } from '../hooks/useEvents'
 import { useRegistrationCounts } from '../hooks/useRegistrations'
 
@@ -26,6 +28,157 @@ const EMPTY_FILTERS = {
   faculty: '',
   requires_registration: false,
   has_qr: false,
+}
+
+function matchesSearch(ev, q) {
+  return ev.title?.toLowerCase().includes(q) ||
+    ev.description?.toLowerCase().includes(q) ||
+    ev.location?.toLowerCase().includes(q)
+}
+
+function matchesDateRange(ev, filters) {
+  if (filters.start_date) {
+    if (!ev.start_datetime || new Date(ev.start_datetime) < new Date(filters.start_date)) return false
+  }
+  if (filters.end_date) {
+    if (!ev.start_datetime || new Date(ev.start_datetime) > new Date(filters.end_date + 'T23:59:59')) return false
+  }
+  return true
+}
+
+function matchesFaculty(ev, faculty) {
+  const q = faculty.toLowerCase()
+  return ev.location?.toLowerCase().includes(q) || ev.description?.toLowerCase().includes(q)
+}
+
+function applyFilters(events, filters) {
+  return events.filter((ev) => {
+    if (filters.search && !matchesSearch(ev, filters.search.toLowerCase())) return false
+    if (filters.category && ev.category !== filters.category) return false
+    if (filters.participation_mode && ev.participation_mode && ev.participation_mode !== filters.participation_mode) return false
+    if (!matchesDateRange(ev, filters)) return false
+    if (filters.faculty && !matchesFaculty(ev, filters.faculty)) return false
+    if (filters.requires_registration && !ev.link_registration) return false
+    if (filters.has_qr && !ev.qr_code) return false
+    return true
+  })
+}
+
+function EventContent({ viewMode, filtered, paginated, isLoading, error, hasActiveFilters, clearFilters, calendarDayEvents, setCalendarDayEvents, page, setPage, totalPages }) {
+  if (isLoading) {
+    return (
+      <div className={
+        viewMode === 'grid'
+          ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4'
+          : 'flex flex-col gap-3'
+      }>
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="h-48 bg-surface border border-border rounded-xl animate-pulse" />
+        ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div role="alert" className="text-center py-20">
+        <p className="text-red-500 text-sm">{error.message}</p>
+      </div>
+    )
+  }
+
+  if (viewMode === 'calendar') {
+    return (
+      <>
+        <MonthCalendar events={filtered} onDayClick={setCalendarDayEvents} />
+        {calendarDayEvents && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-fg text-sm">
+                Events on this day ({calendarDayEvents.length})
+              </h3>
+              <button onClick={() => setCalendarDayEvents(null)} className="text-fg-3 hover:text-fg transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {calendarDayEvents.map((ev) => (
+                <EventCard key={ev.id} {...ev} />
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
+
+  if (filtered.length === 0) {
+    return (
+      <div className="text-center py-20 text-fg-3">
+        <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
+        <p className="font-medium text-fg-2">No events found</p>
+        <p className="text-sm mt-1">Try adjusting your filters</p>
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="mt-4 text-sm text-link hover:text-brand-500 transition-colors"
+          >
+            Clear all filters
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div
+        className={
+          viewMode === 'grid'
+            ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4'
+            : 'flex flex-col gap-3'
+        }
+      >
+        {paginated.map((ev) => (
+          <EventCard key={ev.id} {...ev} />
+        ))}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-8">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="p-2 rounded-lg border border-border text-fg-2 hover:text-fg hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => Math.abs(p - page) <= 2)
+            .map((p) => (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                  p === page
+                    ? 'bg-brand-500 text-white'
+                    : 'border border-border text-fg-2 hover:text-fg hover:bg-surface-alt'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="p-2 rounded-lg border border-border text-fg-2 hover:text-fg hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+    </>
+  )
 }
 
 // ── Calendar helper ──────────────────────────────────────────────────────────
@@ -138,6 +291,7 @@ function MonthCalendar({ events, onDayClick }) {
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 export default function EventListPage() {
+  useDocumentTitle('Events')
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [viewMode, setViewMode] = useState('grid') // 'grid' | 'list' | 'calendar'
   const [page, setPage] = useState(1)
@@ -159,34 +313,7 @@ export default function EventListPage() {
     }))
   }, [allEvents, countsData])
 
-  // Client-side filtering
-  const filtered = useMemo(() => {
-    return eventsWithCounts.filter((ev) => {
-      if (filters.search) {
-        const q = filters.search.toLowerCase()
-        if (
-          !ev.title?.toLowerCase().includes(q) &&
-          !ev.description?.toLowerCase().includes(q) &&
-          !ev.location?.toLowerCase().includes(q)
-        ) return false
-      }
-      if (filters.category && ev.category !== filters.category) return false
-      if (filters.participation_mode && ev.participation_mode && ev.participation_mode !== filters.participation_mode) return false
-      if (filters.start_date) {
-        if (!ev.start_datetime || new Date(ev.start_datetime) < new Date(filters.start_date)) return false
-      }
-      if (filters.end_date) {
-        if (!ev.start_datetime || new Date(ev.start_datetime) > new Date(filters.end_date + 'T23:59:59')) return false
-      }
-      if (filters.faculty) {
-        const q = filters.faculty.toLowerCase()
-        if (!ev.location?.toLowerCase().includes(q) && !ev.description?.toLowerCase().includes(q)) return false
-      }
-      if (filters.requires_registration && !ev.link_registration) return false
-      if (filters.has_qr && !ev.qr_code) return false
-      return true
-    })
-  }, [eventsWithCounts, filters])
+  const filtered = useMemo(() => applyFilters(eventsWithCounts, filters), [eventsWithCounts, filters])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -402,108 +529,24 @@ export default function EventListPage() {
 
           {/* Main content */}
           <div className="flex-1 min-w-0">
-            {isLoading ? (
-              <div className={
-                viewMode === 'grid'
-                  ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4'
-                  : 'flex flex-col gap-3'
-              }>
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="h-48 bg-surface border border-border rounded-xl animate-pulse" />
-                ))}
-              </div>
-            ) : error ? (
-              <div role="alert" className="text-center py-20">
-                <p className="text-red-500 text-sm">{error.message}</p>
-              </div>
-            ) : viewMode === 'calendar' ? (
-              <>
-                <MonthCalendar events={filtered} onDayClick={setCalendarDayEvents} />
-                {calendarDayEvents && (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-fg text-sm">
-                        Events on this day ({calendarDayEvents.length})
-                      </h3>
-                      <button onClick={() => setCalendarDayEvents(null)} className="text-fg-3 hover:text-fg transition-colors">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {calendarDayEvents.map((ev) => (
-                        <EventCard key={ev.id} {...ev} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : filtered.length === 0 ? (
-              <div className="text-center py-20 text-fg-3">
-                <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p className="font-medium text-fg-2">No events found</p>
-                <p className="text-sm mt-1">Try adjusting your filters</p>
-                {hasActiveFilters && (
-                  <button
-                    onClick={clearFilters}
-                    className="mt-4 text-sm text-link hover:text-brand-500 transition-colors"
-                  >
-                    Clear all filters
-                  </button>
-                )}
-              </div>
-            ) : (
-              <>
-                <div
-                  className={
-                    viewMode === 'grid'
-                      ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4'
-                      : 'flex flex-col gap-3'
-                  }
-                >
-                  {paginated.map((ev) => (
-                    <EventCard key={ev.id} {...ev} />
-                  ))}
-                </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-8">
-                    <button
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      className="p-2 rounded-lg border border-border text-fg-2 hover:text-fg hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                      .filter((p) => Math.abs(p - page) <= 2)
-                      .map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => setPage(p)}
-                          className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                            p === page
-                              ? 'bg-brand-500 text-white'
-                              : 'border border-border text-fg-2 hover:text-fg hover:bg-surface-alt'
-                          }`}
-                        >
-                          {p}
-                        </button>
-                      ))}
-                    <button
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={page === totalPages}
-                      className="p-2 rounded-lg border border-border text-fg-2 hover:text-fg hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+            <EventContent
+              viewMode={viewMode}
+              filtered={filtered}
+              paginated={paginated}
+              isLoading={isLoading}
+              error={error}
+              hasActiveFilters={hasActiveFilters}
+              clearFilters={clearFilters}
+              calendarDayEvents={calendarDayEvents}
+              setCalendarDayEvents={setCalendarDayEvents}
+              page={page}
+              setPage={setPage}
+              totalPages={totalPages}
+            />
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

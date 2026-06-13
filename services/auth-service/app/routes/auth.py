@@ -26,6 +26,10 @@ auth_bp = Blueprint("auth", __name__)
 
 PASSWORD_PATTERN = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$")
 
+MSG_NO_DATA = "No data provided"
+MSG_USER_NOT_FOUND = "User not found"
+MSG_PASSWORD_POLICY = "Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 digit"
+
 
 def _validate_password(password: str) -> bool:
     return bool(PASSWORD_PATTERN.match(password))
@@ -41,7 +45,7 @@ def register() -> tuple[Response, int]:
     data = request.get_json()
 
     if not data:
-        return jsonify({"error": "No data provided", "status": 400}), 400
+        return jsonify({"error": MSG_NO_DATA, "status": 400}), 400
 
     email = data.get("email", "").strip()
     password = data.get("password", "").strip()
@@ -74,7 +78,7 @@ def register() -> tuple[Response, int]:
         return (
             jsonify(
                 {
-                    "error": "Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 digit",
+                    "error": MSG_PASSWORD_POLICY,
                     "status": 400,
                 }
             ),
@@ -107,7 +111,7 @@ def login() -> tuple[Response, int]:
     data = request.get_json()
 
     if not data:
-        return jsonify({"error": "No data provided", "status": 400}), 400
+        return jsonify({"error": MSG_NO_DATA, "status": 400}), 400
 
     email = data.get("email", "").strip()
     password = data.get("password", "").strip()
@@ -171,7 +175,7 @@ def me() -> tuple[Response, int]:
     user = db.session.get(User, int(user_id))
 
     if not user:
-        return jsonify({"error": "User not found", "status": 404}), 404
+        return jsonify({"error": MSG_USER_NOT_FOUND, "status": 404}), 404
 
     return jsonify({"user": user.to_dict()}), 200
 
@@ -183,11 +187,11 @@ def update_me() -> tuple[Response, int]:
     user = db.session.get(User, int(user_id))
 
     if not user:
-        return jsonify({"error": "User not found", "status": 404}), 404
+        return jsonify({"error": MSG_USER_NOT_FOUND, "status": 404}), 404
 
     data = request.get_json()
     if not data:
-        return jsonify({"error": "No data provided", "status": 400}), 400
+        return jsonify({"error": MSG_NO_DATA, "status": 400}), 400
 
     full_name = data.get("full_name")
     if full_name is not None:
@@ -272,6 +276,37 @@ def verify() -> tuple[Response, int]:
 # ---------------------------------------------------------------------------
 
 
+def _find_or_create_google_user(email: str, name: str, google_sub: str) -> tuple[User, bool]:
+    """Find existing user by OAuth ID or email, or create a new one.
+    Returns (user, is_new_user)."""
+    user = User.query.filter_by(oauth_id=google_sub).first()
+    if user:
+        if name and user.full_name != name:
+            user.full_name = name
+            db.session.commit()
+        return user, False
+
+    user = User.query.filter_by(email=email).first()
+    if user:
+        user.oauth_provider = "google"
+        user.oauth_id = google_sub
+        if name and user.full_name != name:
+            user.full_name = name
+        db.session.commit()
+        return user, False
+
+    user = User(
+        email=email,
+        full_name=name or email.split("@")[0],
+        role="student",
+        oauth_provider="google",
+        oauth_id=google_sub,
+    )
+    db.session.add(user)
+    db.session.commit()
+    return user, True
+
+
 @auth_bp.route("/google", methods=["POST"])
 def google_auth() -> tuple[Response, int]:
     data = request.get_json()
@@ -281,11 +316,9 @@ def google_auth() -> tuple[Response, int]:
             400,
         )
 
-    credential = data["credential"]
-
     try:
         idinfo = google_id_token.verify_oauth2_token(
-            credential,
+            data["credential"],
             google_requests.Request(),
             current_app.config["GOOGLE_CLIENT_ID"],
         )
@@ -293,10 +326,6 @@ def google_auth() -> tuple[Response, int]:
         return jsonify({"error": "Invalid Google token", "status": 401}), 401
 
     email = idinfo.get("email", "")
-    name = idinfo.get("name", "")
-    google_sub = idinfo.get("sub", "")
-    picture = idinfo.get("picture", "")
-
     if not email.endswith("@student.usv.ro"):
         return (
             jsonify(
@@ -305,32 +334,9 @@ def google_auth() -> tuple[Response, int]:
             403,
         )
 
-    user = User.query.filter_by(oauth_id=google_sub).first()
-    is_new_user = False
-
-    if user:
-        if name and user.full_name != name:
-            user.full_name = name
-            db.session.commit()
-    else:
-        user = User.query.filter_by(email=email).first()
-        if user:
-            user.oauth_provider = "google"
-            user.oauth_id = google_sub
-            if name and user.full_name != name:
-                user.full_name = name
-            db.session.commit()
-        else:
-            is_new_user = True
-            user = User(
-                email=email,
-                full_name=name or email.split("@")[0],
-                role="student",
-                oauth_provider="google",
-                oauth_id=google_sub,
-            )
-            db.session.add(user)
-            db.session.commit()
+    user, is_new_user = _find_or_create_google_user(
+        email, idinfo.get("name", ""), idinfo.get("sub", ""),
+    )
 
     if not user.is_active:
         return (
@@ -378,7 +384,7 @@ def change_password() -> tuple[Response, int]:
     user = db.session.get(User, int(user_id))
 
     if not user:
-        return jsonify({"error": "User not found", "status": 404}), 404
+        return jsonify({"error": MSG_USER_NOT_FOUND, "status": 404}), 404
 
     if user.oauth_provider == "google":
         return (
@@ -393,7 +399,7 @@ def change_password() -> tuple[Response, int]:
 
     data = request.get_json()
     if not data:
-        return jsonify({"error": "No data provided", "status": 400}), 400
+        return jsonify({"error": MSG_NO_DATA, "status": 400}), 400
 
     current_password = data.get("current_password", "")
     new_password = data.get("new_password", "")
@@ -430,7 +436,7 @@ def change_password() -> tuple[Response, int]:
         return (
             jsonify(
                 {
-                    "error": "Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 digit",
+                    "error": MSG_PASSWORD_POLICY,
                     "status": 400,
                 }
             ),
@@ -499,7 +505,7 @@ def reset_password() -> tuple[Response, int]:
     data = request.get_json()
     if not data:
         return (
-            jsonify({"error": "No data provided", "status": 400}),
+            jsonify({"error": MSG_NO_DATA, "status": 400}),
             400,
         )
 
@@ -528,7 +534,7 @@ def reset_password() -> tuple[Response, int]:
         return (
             jsonify(
                 {
-                    "error": "Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 digit",
+                    "error": MSG_PASSWORD_POLICY,
                     "status": 400,
                 }
             ),

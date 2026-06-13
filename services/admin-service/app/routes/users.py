@@ -11,6 +11,7 @@ from app.routes.audit import log_action
 users_bp = Blueprint("users", __name__)
 
 VALID_ROLES = ("student", "organizer", "admin")
+MSG_USER_NOT_FOUND = "User not found"
 
 
 def _admin_required():
@@ -73,7 +74,7 @@ def get_user(user_id):
 
     user = db.session.get(User, user_id)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": MSG_USER_NOT_FOUND}), 404
 
     return jsonify({"user": user.to_dict()}), 200
 
@@ -91,7 +92,7 @@ def activate_user(user_id):
 
     user = db.session.get(User, user_id)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": MSG_USER_NOT_FOUND}), 404
 
     user.is_active = True
     user.updated_at = datetime.now(timezone.utc)
@@ -116,7 +117,7 @@ def deactivate_user(user_id):
 
     user = db.session.get(User, user_id)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": MSG_USER_NOT_FOUND}), 404
 
     if user.id == current_admin_id:
         return jsonify({"error": "Cannot deactivate your own account"}), 400
@@ -155,7 +156,7 @@ def update_role(user_id):
 
     user = db.session.get(User, user_id)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": MSG_USER_NOT_FOUND}), 404
 
     if user.id == current_admin_id:
         return jsonify({"error": "Cannot change your own role"}), 400
@@ -187,7 +188,7 @@ def delete_user(user_id):
 
     user = db.session.get(User, user_id)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": MSG_USER_NOT_FOUND}), 404
 
     if user.id == current_admin_id:
         return jsonify({"error": "Cannot delete your own account"}), 400

@@ -3,9 +3,11 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { Eye, EyeOff, Calendar, ArrowRight, Loader2, AlertCircle, X, Sun, Moon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { getOAuthGoogleUrl } from '../services/authService'
 
 export default function LoginPage() {
+  useDocumentTitle('Sign In')
   const { login } = useAuth()
   const { theme, toggle } = useTheme()
   const navigate = useNavigate()

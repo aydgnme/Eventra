@@ -3,12 +3,14 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Eye, EyeOff, Calendar, ArrowRight, Loader2, AlertCircle, User, Sun, Moon, Shield } from 'lucide-react'
 import { authService } from '../services/authService'
 import { useTheme } from '../context/ThemeContext'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 function deriveRole(email) {
   return email.endsWith('@student.usv.ro') ? 'student' : 'organizer'
 }
 
 export default function RegisterPage() {
+  useDocumentTitle('Sign Up')
   const navigate = useNavigate()
   const { theme, toggle } = useTheme()
 

@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom'
 import { Clock, MapPin, CalendarCheck, Loader2, Star } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useMyRegistrations, useCancelRegistration } from '../hooks/useRegistrations'
 import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 
 const STATUS_BADGE = {
   registered: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25',
@@ -24,6 +26,7 @@ function formatDate(dt) {
 }
 
 export default function DashboardPage() {
+  useDocumentTitle('Dashboard')
   const { user } = useAuth()
   const { addToast } = useToast()
 
@@ -137,6 +140,7 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
+      <Footer />
     </div>
   )
 }

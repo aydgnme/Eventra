@@ -3,6 +3,7 @@ import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { ArrowLeft, Plus, Trash2, Loader2, AlertCircle, Info } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import { useToast } from '../context/ToastContext'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useCreateEvent } from '../hooks/useEvents'
 
 const CATEGORIES = ['academic', 'sport', 'career', 'volunteer', 'cultural']
@@ -26,6 +27,7 @@ function Field({ label, required, error, children }) {
 }
 
 export default function CreateEventPage() {
+  useDocumentTitle('Create Event')
   const navigate = useNavigate()
   const { addToast } = useToast()
 

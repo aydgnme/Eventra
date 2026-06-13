@@ -4,14 +4,17 @@ import {
   User, Mail, Shield, Pencil, Check, X, Loader2, Lock, Eye, EyeOff, AlertCircle,
 } from 'lucide-react'
 import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { authService } from '../services/authService'
 
 const inputCls =
   'w-full px-4 py-3 rounded-xl bg-surface-alt border border-border text-fg placeholder-fg-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all'
 
 export default function ProfilePage() {
+  useDocumentTitle('Profile')
   const { user, updateUser } = useAuth()
   const { addToast } = useToast()
   const queryClient = useQueryClient()
@@ -182,6 +185,7 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   )
 }

@@ -3,6 +3,8 @@ import {
   ArrowRight, CalendarDays, CheckCircle2, FileText, GraduationCap, ShieldCheck, Users,
 } from 'lucide-react'
 import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 
 const FLOW = [
   {
@@ -46,6 +48,7 @@ const AUDIENCES = [
 ]
 
 export default function AboutPage() {
+  useDocumentTitle('About')
   return (
     <div className="min-h-screen bg-bg">
       <Navbar />
@@ -126,6 +129,7 @@ export default function AboutPage() {
           </div>
         </section>
       </main>
+      <Footer />
     </div>
   )
 }

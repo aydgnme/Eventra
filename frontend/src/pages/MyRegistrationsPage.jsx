@@ -4,8 +4,10 @@ import {
   CalendarDays, Clock, MapPin, Loader2, Ticket, Timer, XCircle, CheckCircle2, Search, Filter, QrCode,
 } from 'lucide-react'
 import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 import { useToast } from '../context/ToastContext'
 import { useMyRegistrations, useCancelRegistration, useLeaveWaitlist } from '../hooks/useRegistrations'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import QRTicketModal from '../components/QRTicketModal'
 
 const TABS = [
@@ -31,6 +33,7 @@ function formatDate(dt) {
 }
 
 export default function MyRegistrationsPage() {
+  useDocumentTitle('My Registrations')
   const { addToast } = useToast()
   const [tab, setTab] = useState('all')
   const [search, setSearch] = useState('')
@@ -231,6 +234,7 @@ export default function MyRegistrationsPage() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
 
     {ticketEventId && (

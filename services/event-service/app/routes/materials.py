@@ -30,10 +30,13 @@ def _infer_file_type(ext):
     return FileType.IMAGE
 
 
+MSG_EVENT_NOT_FOUND = "Event not found"
+
+
 def _get_event_or_404(event_id):
     event = db.session.get(Event, event_id)
     if not event:
-        return None, (jsonify({"error": "Event not found"}), 404)
+        return None, (jsonify({"error": MSG_EVENT_NOT_FOUND}), 404)
     return event, None
 
 
@@ -56,7 +59,7 @@ def list_materials(event_id):
         user_id = get_jwt_identity()
         claims = get_jwt()
         if not user_id or not _can_manage(event, user_id, claims):
-            return jsonify({"error": "Event not found"}), 404
+            return jsonify({"error": MSG_EVENT_NOT_FOUND}), 404
 
     return jsonify({"materials": [m.to_dict() for m in event.materials]}), 200
 
@@ -166,7 +169,7 @@ def download_material(event_id, material_id):
         user_id = get_jwt_identity()
         claims = get_jwt()
         if not user_id or not _can_manage(event, user_id, claims):
-            return jsonify({"error": "Event not found"}), 404
+            return jsonify({"error": MSG_EVENT_NOT_FOUND}), 404
 
     material = db.session.get(Material, material_id)
     if not material or material.event_id != event_id:

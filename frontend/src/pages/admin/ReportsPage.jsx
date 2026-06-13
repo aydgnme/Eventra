@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BarChart3, Calendar, Users, Star, TrendingUp } from 'lucide-react'
 import { useReportSummary, useEventsReport, useOrganizersReport } from '../../hooks/useAdmin'
 import adminService from '../../services/adminService'
+import useDocumentTitle from '../../hooks/useDocumentTitle'
 import StatCard from '../../components/admin/StatCard'
 
 const TABS = [
@@ -10,6 +11,7 @@ const TABS = [
 ]
 
 export default function ReportsPage() {
+  useDocumentTitle('Reports')
   const [activeTab, setActiveTab] = useState('events')
 
   const { data: summary, isLoading: summaryLoading } = useReportSummary()

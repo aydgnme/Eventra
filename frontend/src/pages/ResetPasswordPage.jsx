@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { Calendar, Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, Sun, Moon } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { authService } from '../services/authService'
 
 const inputCls =
   'w-full px-4 py-3 rounded-xl bg-surface border border-border text-fg placeholder-fg-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all'
 
 export default function ResetPasswordPage() {
+  useDocumentTitle('Reset Password')
   const { theme, toggle } = useTheme()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()

@@ -3,6 +3,7 @@ import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { ArrowLeft, Plus, Trash2, Loader2, AlertCircle, CheckCircle, Clock } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import { useToast } from '../context/ToastContext'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useEvent, useUpdateEvent } from '../hooks/useEvents'
 
 const CATEGORIES = ['academic', 'sport', 'career', 'volunteer', 'cultural']
@@ -28,6 +29,66 @@ function toLocalInput(isoString) {
   return isoString.slice(0, 16)
 }
 
+function PublicationStatus({ event }) {
+  return (
+    <div className={`flex items-start gap-3 rounded-xl p-4 border ${
+      event.is_published
+        ? 'bg-green-500/5 border-green-500/20'
+        : 'bg-yellow-500/5 border-yellow-500/20'
+    }`}>
+      {event.is_published
+        ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+        : <Clock className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
+      }
+      <div>
+        <p className={`text-sm font-medium ${event.is_published ? 'text-green-500' : 'text-yellow-500'}`}>
+          {event.is_published ? 'Published' : 'Pending Review'}
+        </p>
+        <p className="text-xs text-fg-3 mt-0.5">
+          {event.is_published
+            ? 'This event is live and visible to students.'
+            : 'Awaiting admin approval. Changes saved here will be included in the review.'}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function SponsorsSection({ sponsorFields, addSponsor, removeSponsor, register, inputCls }) {
+  return (
+    <div className="bg-surface border border-border rounded-xl p-6 shadow-sm space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-fg text-sm uppercase tracking-wide">Sponsors</h2>
+        <button
+          type="button"
+          onClick={() => addSponsor({ name: '', logo_url: '' })}
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-dashed border-brand-500/50 text-brand-500 hover:bg-brand-500/5 transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Add Sponsor
+        </button>
+      </div>
+      {sponsorFields.length === 0 ? (
+        <p className="text-fg-3 text-sm text-center py-3">No sponsors added</p>
+      ) : (
+        <div className="space-y-3">
+          {sponsorFields.map((field, index) => (
+            <div key={field.id} className="flex gap-3 items-start p-3 bg-surface-alt rounded-lg border border-border">
+              <div className="flex-1 space-y-2">
+                <input {...register(`sponsors.${index}.name`)} placeholder="Sponsor name" className={inputCls} />
+                <input {...register(`sponsors.${index}.logo_url`)} placeholder="Logo URL" className={inputCls} />
+              </div>
+              <button type="button" onClick={() => removeSponsor(index)} className="p-2 rounded-lg text-fg-3 hover:text-red-500 hover:bg-red-500/10 transition-colors mt-0.5">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function EditEventPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -36,6 +97,7 @@ export default function EditEventPage() {
   const { data, isLoading } = useEvent(id)
 
   const event = data?.event
+  useDocumentTitle(event ? `Edit: ${event.title}` : 'Edit Event')
 
   const {
     register,
@@ -239,59 +301,15 @@ export default function EditEventPage() {
             </Field>
           </div>
 
-          {/* Sponsors */}
-          <div className="bg-surface border border-border rounded-xl p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-fg text-sm uppercase tracking-wide">Sponsors</h2>
-              <button
-                type="button"
-                onClick={() => addSponsor({ name: '', logo_url: '' })}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-dashed border-brand-500/50 text-brand-500 hover:bg-brand-500/5 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add Sponsor
-              </button>
-            </div>
-            {sponsorFields.length === 0 ? (
-              <p className="text-fg-3 text-sm text-center py-3">No sponsors added</p>
-            ) : (
-              <div className="space-y-3">
-                {sponsorFields.map((field, index) => (
-                  <div key={field.id} className="flex gap-3 items-start p-3 bg-surface-alt rounded-lg border border-border">
-                    <div className="flex-1 space-y-2">
-                      <input {...register(`sponsors.${index}.name`)} placeholder="Sponsor name" className={inputCls} />
-                      <input {...register(`sponsors.${index}.logo_url`)} placeholder="Logo URL" className={inputCls} />
-                    </div>
-                    <button type="button" onClick={() => removeSponsor(index)} className="p-2 rounded-lg text-fg-3 hover:text-red-500 hover:bg-red-500/10 transition-colors mt-0.5">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <SponsorsSection
+            sponsorFields={sponsorFields}
+            addSponsor={addSponsor}
+            removeSponsor={removeSponsor}
+            register={register}
+            inputCls={inputCls}
+          />
 
-          {/* Publication status (read-only) */}
-          <div className={`flex items-start gap-3 rounded-xl p-4 border ${
-            event.is_published
-              ? 'bg-green-500/5 border-green-500/20'
-              : 'bg-yellow-500/5 border-yellow-500/20'
-          }`}>
-            {event.is_published
-              ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-              : <Clock className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
-            }
-            <div>
-              <p className={`text-sm font-medium ${event.is_published ? 'text-green-500' : 'text-yellow-500'}`}>
-                {event.is_published ? 'Published' : 'Pending Review'}
-              </p>
-              <p className="text-xs text-fg-3 mt-0.5">
-                {event.is_published
-                  ? 'This event is live and visible to students.'
-                  : 'Awaiting admin approval. Changes saved here will be included in the review.'}
-              </p>
-            </div>
-          </div>
+          <PublicationStatus event={event} />
 
           {updateMutation.isError && (
             <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">

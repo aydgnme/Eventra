@@ -4,7 +4,9 @@ import {
   CalendarDays, ChevronLeft, ChevronRight, Clock, Loader2, MapPin, Sparkles,
 } from 'lucide-react'
 import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 import EventCard from '../components/EventCard'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useEvents } from '../hooks/useEvents'
 
 const CATEGORY_DOT = {
@@ -170,6 +172,7 @@ function CompactEvent({ event }) {
 }
 
 export default function CalendarPage() {
+  useDocumentTitle('Calendar')
   const [nowTs] = useState(() => Date.now())
   const [viewDate, setViewDate] = useState(() => new Date())
   const [selectedKey, setSelectedKey] = useState(() => dateKey(new Date()))
@@ -274,6 +277,7 @@ export default function CalendarPage() {
           </section>
         )}
       </main>
+      <Footer />
     </div>
   )
 }

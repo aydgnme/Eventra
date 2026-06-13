@@ -10,6 +10,7 @@ import {
   adminKeys,
 } from '../../hooks/useAdmin'
 import { useToast } from '../../context/ToastContext'
+import useDocumentTitle from '../../hooks/useDocumentTitle'
 import EventPreviewModal from '../../components/admin/EventPreviewModal'
 import RejectModal from '../../components/admin/RejectModal'
 
@@ -196,7 +197,7 @@ function PendingTab({ search, categoryFilter }) {
         <EventPreviewModal
           event={previewEvent}
           onClose={() => setPreviewEvent(null)}
-          onValidate={async () => { await handleValidate(previewEvent.id); setPreviewEvent(null) }}
+          onValidate={() => { handleValidate(previewEvent.id); setPreviewEvent(null) }}
           onReject={() => { setRejectEvent(previewEvent); setPreviewEvent(null) }}
         />
       )}
@@ -413,6 +414,7 @@ function RejectedTab({ search, categoryFilter }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function EventValidationPage() {
+  useDocumentTitle('Event Validation')
   const [activeTab, setActiveTab] = useState('pending')
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')

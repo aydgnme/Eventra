@@ -15,6 +15,34 @@ from app.utils.helpers import (
 
 oauth_bp = Blueprint("oauth", __name__)
 
+
+def _find_or_create_oauth_user(email: str, full_name: str, role: str, oauth_id: str | None) -> User:
+    """Find existing user by email or create a new one with OAuth details."""
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        user = User(
+            email=email,
+            full_name=full_name,
+            role=role,
+            oauth_provider="google",
+            oauth_id=oauth_id,
+        )
+        db.session.add(user)
+        db.session.commit()
+        return user
+
+    if user.role != role:
+        user.role = role
+    if full_name and user.full_name != full_name:
+        user.full_name = full_name
+    if not user.oauth_provider:
+        user.oauth_provider = "google"
+        user.oauth_id = oauth_id
+    elif not user.oauth_id:
+        user.oauth_id = oauth_id
+    db.session.commit()
+    return user
+
 GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v3/userinfo"
@@ -102,28 +130,7 @@ def google_callback():
         )
 
     # 6. Find or create user
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        user = User(
-            email=email,
-            full_name=full_name,
-            role=role,
-            oauth_provider="google",
-            oauth_id=profile.get("sub"),
-        )
-        db.session.add(user)
-        db.session.commit()
-    else:
-        if user.role != role:
-            user.role = role
-        if full_name and user.full_name != full_name:
-            user.full_name = full_name
-        if not user.oauth_provider:
-            user.oauth_provider = "google"
-            user.oauth_id = profile.get("sub")
-        elif not user.oauth_id:
-            user.oauth_id = profile.get("sub")
-        db.session.commit()
+    user = _find_or_create_oauth_user(email, full_name, role, profile.get("sub"))
 
     if not user.is_active:
         return _redirect_error("Your account has been disabled. Contact support.")

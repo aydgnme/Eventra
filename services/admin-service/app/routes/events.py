@@ -13,6 +13,49 @@ from app.utils.email_client import send_event_validated_email, send_event_reject
 
 events_bp = Blueprint("admin_events", __name__)
 
+MSG_EVENT_NOT_FOUND = "Event not found"
+
+
+def _apply_search_filters(query, search: str, category: str):
+    """Apply common search and category filters to an event query."""
+    if search:
+        query = query.filter(Event.title.ilike(f"%{search}%"))
+    if category:
+        try:
+            cat_enum = EventCategory(category)
+            query = query.filter(Event.category == cat_enum)
+        except ValueError:
+            return None, (jsonify({"error": f"Invalid category: {category}"}), 400)
+    return query, None
+
+
+def _enrich_events_with_review(events, include_rejection=False):
+    """Add review status and organizer info to a list of events."""
+    event_ids = [e.id for e in events]
+    reviews = {
+        r.event_id: r
+        for r in EventReview.query.filter(EventReview.event_id.in_(event_ids)).all()
+    } if event_ids else {}
+
+    organizer_ids = list({e.organizer_id for e in events})
+    organizers = {
+        u.id: u for u in User.query.filter(User.id.in_(organizer_ids)).all()
+    } if organizer_ids else {}
+
+    result = []
+    for event in events:
+        data = event.to_dict()
+        review = reviews.get(event.id)
+        data["review_status"] = review.status if review else ReviewStatus.PENDING
+        if include_rejection:
+            data["rejection_reason"] = review.rejection_reason if review else None
+            data["reviewed_at"] = review.reviewed_at.isoformat() if review and review.reviewed_at else None
+        org = organizers.get(event.organizer_id)
+        data["organizer_name"] = org.full_name if org else None
+        data["organizer_email"] = org.email if org else None
+        result.append(data)
+    return result
+
 
 def _admin_required():
     claims = get_jwt()
@@ -53,15 +96,9 @@ def pending_events():
     if rejected_ids:
         query = query.filter(Event.id.notin_(rejected_ids))
 
-    if search:
-        query = query.filter(Event.title.ilike(f"%{search}%"))
-
-    if category:
-        try:
-            cat_enum = EventCategory(category)
-            query = query.filter(Event.category == cat_enum)
-        except ValueError:
-            return jsonify({"error": f"Invalid category: {category}"}), 400
+    query, filter_err = _apply_search_filters(query, search, category)
+    if filter_err:
+        return filter_err
 
     if organizer_search:
         matching_organizer_ids = [
@@ -69,27 +106,12 @@ def pending_events():
                 User.full_name.ilike(f"%{organizer_search}%")
             ).all()
         ]
-        if matching_organizer_ids:
-            query = query.filter(Event.organizer_id.in_(matching_organizer_ids))
-        else:
+        if not matching_organizer_ids:
             return jsonify({"events": [], "total": 0}), 200
+        query = query.filter(Event.organizer_id.in_(matching_organizer_ids))
 
     events = query.order_by(Event.created_at.asc()).all()
-
-    organizer_ids = list({e.organizer_id for e in events})
-    organizers = {
-        u.id: u for u in User.query.filter(User.id.in_(organizer_ids)).all()
-    } if organizer_ids else {}
-
-    result = []
-    for event in events:
-        data = event.to_dict()
-        review = EventReview.query.filter_by(event_id=event.id).first()
-        data["review_status"] = review.status if review else ReviewStatus.PENDING
-        org = organizers.get(event.organizer_id)
-        data["organizer_name"] = org.full_name if org else None
-        data["organizer_email"] = org.email if org else None
-        result.append(data)
+    result = _enrich_events_with_review(events)
 
     return jsonify({"events": result, "total": len(result)}), 200
 
@@ -138,6 +160,21 @@ def event_stats():
 # GET /admin/events/all  — all events filterable by review status
 # ---------------------------------------------------------------------------
 
+def _build_status_query(status_filter: str):
+    """Build base query filtered by review status."""
+    if status_filter == ReviewStatus.APPROVED:
+        ids = [r.event_id for r in EventReview.query.filter_by(status=ReviewStatus.APPROVED).all()]
+        return Event.query.filter(Event.id.in_(ids)) if ids else Event.query.filter(False)
+    if status_filter == ReviewStatus.REJECTED:
+        ids = [r.event_id for r in EventReview.query.filter_by(status=ReviewStatus.REJECTED).all()]
+        return Event.query.filter(Event.id.in_(ids)) if ids else Event.query.filter(False)
+    if status_filter == ReviewStatus.PENDING:
+        rejected_ids = [r.event_id for r in EventReview.query.filter_by(status=ReviewStatus.REJECTED).all()]
+        query = Event.query.filter_by(is_published=False)
+        return query.filter(Event.id.notin_(rejected_ids)) if rejected_ids else query
+    return Event.query
+
+
 @events_bp.route("/all", methods=["GET"])
 @jwt_required()
 def all_events():
@@ -147,65 +184,20 @@ def all_events():
 
     page = request.args.get("page", 1, type=int)
     per_page = min(request.args.get("per_page", 20, type=int), 100)
-    status_filter = request.args.get("status", "").strip()
     search = request.args.get("search", "").strip()
     category = request.args.get("category", "").strip()
 
-    if status_filter == ReviewStatus.APPROVED:
-        approved_ids = [
-            r.event_id for r in EventReview.query.filter_by(status=ReviewStatus.APPROVED).all()
-        ]
-        query = Event.query.filter(Event.id.in_(approved_ids)) if approved_ids else Event.query.filter(False)
-    elif status_filter == ReviewStatus.REJECTED:
-        rejected_ids = [
-            r.event_id for r in EventReview.query.filter_by(status=ReviewStatus.REJECTED).all()
-        ]
-        query = Event.query.filter(Event.id.in_(rejected_ids)) if rejected_ids else Event.query.filter(False)
-    elif status_filter == ReviewStatus.PENDING:
-        rejected_ids = [
-            r.event_id for r in EventReview.query.filter_by(status=ReviewStatus.REJECTED).all()
-        ]
-        query = Event.query.filter_by(is_published=False)
-        if rejected_ids:
-            query = query.filter(Event.id.notin_(rejected_ids))
-    else:
-        query = Event.query
+    query = _build_status_query(request.args.get("status", "").strip())
 
-    if search:
-        query = query.filter(Event.title.ilike(f"%{search}%"))
-
-    if category:
-        try:
-            query = query.filter(Event.category == EventCategory(category))
-        except ValueError:
-            return jsonify({"error": f"Invalid category: {category}"}), 400
+    query, filter_err = _apply_search_filters(query, search, category)
+    if filter_err:
+        return filter_err
 
     pagination = query.order_by(Event.created_at.desc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
 
-    event_ids = [e.id for e in pagination.items]
-    reviews = {
-        r.event_id: r
-        for r in EventReview.query.filter(EventReview.event_id.in_(event_ids)).all()
-    } if event_ids else {}
-
-    organizer_ids = list({e.organizer_id for e in pagination.items})
-    organizers = {
-        u.id: u for u in User.query.filter(User.id.in_(organizer_ids)).all()
-    } if organizer_ids else {}
-
-    result = []
-    for event in pagination.items:
-        data = event.to_dict()
-        review = reviews.get(event.id)
-        data["review_status"] = review.status if review else ReviewStatus.PENDING
-        data["rejection_reason"] = review.rejection_reason if review else None
-        data["reviewed_at"] = review.reviewed_at.isoformat() if review and review.reviewed_at else None
-        org = organizers.get(event.organizer_id)
-        data["organizer_name"] = org.full_name if org else None
-        data["organizer_email"] = org.email if org else None
-        result.append(data)
+    result = _enrich_events_with_review(pagination.items, include_rejection=True)
 
     return jsonify({
         "events": result,
@@ -229,7 +221,7 @@ def validate_event(event_id):
 
     event = db.session.get(Event, event_id)
     if not event:
-        return jsonify({"error": "Event not found"}), 404
+        return jsonify({"error": MSG_EVENT_NOT_FOUND}), 404
 
     admin_id = int(get_jwt_identity())
     review = _get_or_create_review(event_id)
@@ -266,7 +258,7 @@ def reject_event(event_id):
 
     event = db.session.get(Event, event_id)
     if not event:
-        return jsonify({"error": "Event not found"}), 404
+        return jsonify({"error": MSG_EVENT_NOT_FOUND}), 404
 
     data = request.get_json() or {}
     reason = data.get("reason", "").strip()
@@ -311,7 +303,7 @@ def publish_event(event_id):
 
     event = db.session.get(Event, event_id)
     if not event:
-        return jsonify({"error": "Event not found"}), 404
+        return jsonify({"error": MSG_EVENT_NOT_FOUND}), 404
 
     admin_id = int(get_jwt_identity())
     review = _get_or_create_review(event_id)
@@ -343,7 +335,7 @@ def unpublish_event(event_id):
 
     event = db.session.get(Event, event_id)
     if not event:
-        return jsonify({"error": "Event not found"}), 404
+        return jsonify({"error": MSG_EVENT_NOT_FOUND}), 404
 
     if not event.is_published:
         return jsonify({"error": "Event is not published"}), 400

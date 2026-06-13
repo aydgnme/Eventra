@@ -5,6 +5,7 @@ import {
   Activity,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import useDocumentTitle from '../../hooks/useDocumentTitle'
 import { useReportSummary, usePendingEvents, useAuditLogs } from '../../hooks/useAdmin'
 import StatCard from '../../components/admin/StatCard'
 
@@ -49,6 +50,7 @@ function AuditLogSkeleton() {
 }
 
 export default function AdminOverviewPage() {
+  useDocumentTitle('Admin Dashboard')
   const { user } = useAuth()
   const navigate = useNavigate()
 

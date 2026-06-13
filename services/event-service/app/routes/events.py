@@ -22,10 +22,95 @@ def _parse_dt(value, field_name):
         raise ValueError(f"Invalid {field_name} format (use ISO 8601)")
 
 
+MSG_EVENT_NOT_FOUND = "Event not found"
+
+
+def _apply_list_filters(query):
+    """Apply query-string filters and return (query, error_response).
+    Returns (None, error_response) if validation fails."""
+    q = request.args.get("q", "").strip()
+    if q:
+        query = query.filter(
+            db.or_(Event.title.ilike(f"%{q}%"), Event.description.ilike(f"%{q}%"))
+        )
+
+    category_val = request.args.get("category", "").strip()
+    if category_val:
+        try:
+            query = query.filter(Event.category == EventCategory(category_val))
+        except ValueError:
+            return None, (jsonify({"error": f"Invalid category. Valid: {_VALID_CATEGORIES}"}), 400)
+
+    mode_val = request.args.get("mode", "").strip()
+    if mode_val:
+        try:
+            query = query.filter(Event.participation_mode == ParticipationMode(mode_val))
+        except ValueError:
+            return None, (jsonify({"error": f"Invalid mode. Valid: {_VALID_MODES}"}), 400)
+
+    location_val = request.args.get("location", "").strip()
+    if location_val:
+        query = query.filter(Event.location.ilike(f"%{location_val}%"))
+
+    organizer_id_val = request.args.get("organizer_id", "").strip()
+    if organizer_id_val:
+        try:
+            query = query.filter(Event.organizer_id == int(organizer_id_val))
+        except ValueError:
+            return None, (jsonify({"error": "organizer_id must be an integer"}), 400)
+
+    return query, None
+
+
+def _apply_date_filters(query):
+    """Apply from/to date filters. Returns (query, error_response)."""
+    from_val = request.args.get("from", "").strip()
+    if from_val:
+        try:
+            query = query.filter(Event.start_datetime >= datetime.fromisoformat(from_val))
+        except ValueError:
+            return None, (jsonify({"error": "Invalid 'from' date (use ISO 8601)"}), 400)
+
+    to_val = request.args.get("to", "").strip()
+    if to_val:
+        try:
+            query = query.filter(Event.start_datetime <= datetime.fromisoformat(to_val))
+        except ValueError:
+            return None, (jsonify({"error": "Invalid 'to' date (use ISO 8601)"}), 400)
+
+    return query, None
+
+
+def _apply_enum_fields(event, data):
+    """Apply category and participation_mode from data to event. Returns error or None."""
+    if "category" in data:
+        try:
+            event.category = EventCategory(data["category"])
+        except ValueError:
+            return jsonify({"error": f"Invalid category. Valid: {_VALID_CATEGORIES}"}), 400
+    if "participation_mode" in data:
+        try:
+            event.participation_mode = ParticipationMode(data["participation_mode"])
+        except ValueError:
+            return jsonify({"error": f"Invalid participation_mode. Valid: {_VALID_MODES}"}), 400
+    return None
+
+
+def _reset_rejected_review(event_id: int):
+    """Reset a rejected review to pending so admin reviews the updated event again."""
+    review = EventReview.query.filter_by(event_id=event_id).first()
+    if review and review.status == 'rejected':
+        review.status = 'pending'
+        review.rejection_reason = None
+        review.reviewed_by = None
+        review.reviewed_at = None
+        db.session.commit()
+
+
 def _get_event_or_404(event_id):
     event = db.session.get(Event, event_id)
     if not event:
-        return None, (jsonify({"error": "Event not found"}), 404)
+        return None, (jsonify({"error": MSG_EVENT_NOT_FOUND}), 404)
     return event, None
 
 
@@ -38,61 +123,14 @@ def list_events():
     """List published events with optional search and filtering."""
     query = Event.query.filter_by(is_published=True)
 
-    # Text search (title + description)
-    q = request.args.get("q", "").strip()
-    if q:
-        query = query.filter(
-            db.or_(
-                Event.title.ilike(f"%{q}%"),
-                Event.description.ilike(f"%{q}%"),
-            )
-        )
+    query, err = _apply_list_filters(query)
+    if err:
+        return err
 
-    # Category filter
-    category_val = request.args.get("category", "").strip()
-    if category_val:
-        try:
-            query = query.filter(Event.category == EventCategory(category_val))
-        except ValueError:
-            return jsonify({"error": f"Invalid category. Valid: {_VALID_CATEGORIES}"}), 400
+    query, err = _apply_date_filters(query)
+    if err:
+        return err
 
-    # Participation mode filter
-    mode_val = request.args.get("mode", "").strip()
-    if mode_val:
-        try:
-            query = query.filter(Event.participation_mode == ParticipationMode(mode_val))
-        except ValueError:
-            return jsonify({"error": f"Invalid mode. Valid: {_VALID_MODES}"}), 400
-
-    # Location filter
-    location_val = request.args.get("location", "").strip()
-    if location_val:
-        query = query.filter(Event.location.ilike(f"%{location_val}%"))
-
-    # Organizer filter
-    organizer_id_val = request.args.get("organizer_id", "").strip()
-    if organizer_id_val:
-        try:
-            query = query.filter(Event.organizer_id == int(organizer_id_val))
-        except ValueError:
-            return jsonify({"error": "organizer_id must be an integer"}), 400
-
-    # Date range filters
-    from_val = request.args.get("from", "").strip()
-    if from_val:
-        try:
-            query = query.filter(Event.start_datetime >= datetime.fromisoformat(from_val))
-        except ValueError:
-            return jsonify({"error": "Invalid 'from' date (use ISO 8601)"}), 400
-
-    to_val = request.args.get("to", "").strip()
-    if to_val:
-        try:
-            query = query.filter(Event.start_datetime <= datetime.fromisoformat(to_val))
-        except ValueError:
-            return jsonify({"error": "Invalid 'to' date (use ISO 8601)"}), 400
-
-    # Pagination
     try:
         page = max(1, int(request.args.get("page", 1)))
         per_page = min(100, max(1, int(request.args.get("per_page", 20))))
@@ -125,7 +163,7 @@ def get_event(event_id):
         user_id = get_jwt_identity()
         claims = get_jwt()
         if not user_id or (int(user_id) != event.organizer_id and claims.get("role") != "admin"):
-            return jsonify({"error": "Event not found"}), 404
+            return jsonify({"error": MSG_EVENT_NOT_FOUND}), 404
 
     return jsonify({"event": event.to_dict()}), 200
 
@@ -271,28 +309,12 @@ def update_event(event_id):
             value = data[field]
             setattr(event, field, value.strip() if isinstance(value, str) else value)
 
-    if "category" in data:
-        try:
-            event.category = EventCategory(data["category"])
-        except ValueError:
-            return jsonify({"error": f"Invalid category. Valid: {_VALID_CATEGORIES}"}), 400
-
-    if "participation_mode" in data:
-        try:
-            event.participation_mode = ParticipationMode(data["participation_mode"])
-        except ValueError:
-            return jsonify({"error": f"Invalid participation_mode. Valid: {_VALID_MODES}"}), 400
+    enum_err = _apply_enum_fields(event, data)
+    if enum_err:
+        return enum_err
 
     db.session.commit()
-
-    # If this event was rejected, reset to pending so admin reviews it again
-    review = EventReview.query.filter_by(event_id=event_id).first()
-    if review and review.status == 'rejected':
-        review.status = 'pending'
-        review.rejection_reason = None
-        review.reviewed_by = None
-        review.reviewed_at = None
-        db.session.commit()
+    _reset_rejected_review(event_id)
 
     return jsonify({"message": "Event updated", "event": event.to_dict()}), 200
 
@@ -327,7 +349,7 @@ def event_qr(event_id):
         return err
 
     if not event.is_published:
-        return jsonify({"error": "Event not found"}), 404
+        return jsonify({"error": MSG_EVENT_NOT_FOUND}), 404
 
     try:
         import qrcode
@@ -365,7 +387,7 @@ def event_ics(event_id):
         return err
 
     if not event.is_published:
-        return jsonify({"error": "Event not found"}), 404
+        return jsonify({"error": MSG_EVENT_NOT_FOUND}), 404
 
     try:
         from icalendar import Calendar, Event as CalEvent

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Search, Users, ShieldAlert, Shield, GraduationCap } from 'lucide-react'
 import { useAdminUsers, useActivateUser, useDeactivateUser, useDeleteUser, useUpdateUserRole } from '../../hooks/useAdmin'
 import { useToast } from '../../context/ToastContext'
+import useDocumentTitle from '../../hooks/useDocumentTitle'
 
 const ROLE_BADGE = {
   student: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
@@ -15,6 +16,81 @@ const ROLE_ICON = {
   admin: ShieldAlert,
 }
 
+function UserRow({ user, activateMut, deactivateMut, deleteMut, roleUpdateMut, handleToggleActive, handleRoleChange, handleDelete, formatDate }) {
+  const RoleIcon = ROLE_ICON[user.role] ?? Users
+  const busy = (activateMut.isPending && activateMut.variables === user.id)
+    || (deactivateMut.isPending && deactivateMut.variables === user.id)
+    || (deleteMut.isPending && deleteMut.variables === user.id)
+    || (roleUpdateMut.isPending && roleUpdateMut.variables?.id === user.id)
+
+  return (
+    <tr className="border-b border-border hover:bg-surface-alt/50 transition-colors">
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-brand-500/10 flex items-center justify-center text-brand-500 text-xs font-bold shrink-0">
+            {(user.full_name || user.email || '?')[0].toUpperCase()}
+          </div>
+          <span className="font-medium text-fg truncate max-w-32">{user.full_name || '—'}</span>
+        </div>
+      </td>
+      <td className="px-4 py-3 text-fg-3">{user.email}</td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium border capitalize flex items-center gap-1 ${ROLE_BADGE[user.role] ?? 'bg-surface-alt text-fg-2 border-border'}`}>
+            <RoleIcon className="w-3 h-3" />
+            {user.role}
+          </span>
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+          user.is_active
+            ? 'bg-green-500/10 text-green-500'
+            : 'bg-surface-alt text-fg-3'
+        }`}>
+          {user.is_active ? 'Active' : 'Inactive'}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-fg-3 whitespace-nowrap">{formatDate(user.created_at)}</td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <select
+            value={user.role}
+            onChange={(e) => handleRoleChange(user, e.target.value)}
+            disabled={!!busy}
+            className="px-2 py-1 rounded-lg bg-surface-alt border border-border text-fg text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all disabled:opacity-50"
+          >
+            <option value="student">Student</option>
+            <option value="organizer">Organizer</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button
+            onClick={() => handleToggleActive(user)}
+            disabled={!!busy}
+            className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
+              user.is_active
+                ? 'bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 border border-yellow-500/20'
+                : 'bg-green-500/10 text-green-500 hover:bg-green-500/20 border border-green-500/20'
+            }`}
+          >
+            {(activateMut.isPending && activateMut.variables === user.id)
+              || (deactivateMut.isPending && deactivateMut.variables === user.id)
+              ? '...'
+              : user.is_active ? 'Deactivate' : 'Activate'}
+          </button>
+          <button
+            onClick={() => handleDelete(user)}
+            disabled={!!busy}
+            className="px-2 py-1 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 transition-colors disabled:opacity-50"
+          >
+            {deleteMut.isPending && deleteMut.variables === user.id ? '...' : 'Delete'}
+          </button>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
 function TableSkeleton() {
   return (
     <div className="bg-surface border border-border rounded-xl overflow-hidden animate-pulse">
@@ -26,6 +102,7 @@ function TableSkeleton() {
 }
 
 export default function UserManagementPage() {
+  useDocumentTitle('User Management')
   const { addToast } = useToast()
 
   const [search, setSearch] = useState('')
@@ -158,88 +235,20 @@ export default function UserManagementPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((user) => {
-                  const RoleIcon = ROLE_ICON[user.role] ?? Users
-                  const busy = (activateMut.isPending && activateMut.variables === user.id)
-                    || (deactivateMut.isPending && deactivateMut.variables === user.id)
-                    || (deleteMut.isPending && deleteMut.variables === user.id)
-                    || (roleUpdateMut.isPending && roleUpdateMut.variables?.id === user.id)
-                  return (
-                    <tr key={user.id} className="border-b border-border hover:bg-surface-alt/50 transition-colors">
-                      {/* Name */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-brand-500/10 flex items-center justify-center text-brand-500 text-xs font-bold shrink-0">
-                            {(user.full_name || user.email || '?')[0].toUpperCase()}
-                          </div>
-                          <span className="font-medium text-fg truncate max-w-32">{user.full_name || '—'}</span>
-                        </div>
-                      </td>
-                      {/* Email */}
-                      <td className="px-4 py-3 text-fg-3">{user.email}</td>
-                      {/* Role */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium border capitalize flex items-center gap-1 ${ROLE_BADGE[user.role] ?? 'bg-surface-alt text-fg-2 border-border'}`}>
-                            <RoleIcon className="w-3 h-3" />
-                            {user.role}
-                          </span>
-                        </div>
-                      </td>
-                      {/* Status */}
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          user.is_active
-                            ? 'bg-green-500/10 text-green-500'
-                            : 'bg-surface-alt text-fg-3'
-                        }`}>
-                          {user.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      {/* Joined */}
-                      <td className="px-4 py-3 text-fg-3 whitespace-nowrap">{formatDate(user.created_at)}</td>
-                      {/* Actions */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {/* Role select */}
-                          <select
-                            value={user.role}
-                            onChange={(e) => handleRoleChange(user, e.target.value)}
-                            disabled={!!busy}
-                            className="px-2 py-1 rounded-lg bg-surface-alt border border-border text-fg text-xs focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all disabled:opacity-50"
-                          >
-                            <option value="student">Student</option>
-                            <option value="organizer">Organizer</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                          {/* Activate/Deactivate */}
-                          <button
-                            onClick={() => handleToggleActive(user)}
-                            disabled={!!busy}
-                            className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
-                              user.is_active
-                                ? 'bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 border border-yellow-500/20'
-                                : 'bg-green-500/10 text-green-500 hover:bg-green-500/20 border border-green-500/20'
-                            }`}
-                          >
-                            {(activateMut.isPending && activateMut.variables === user.id)
-                              || (deactivateMut.isPending && deactivateMut.variables === user.id)
-                              ? '...'
-                              : user.is_active ? 'Deactivate' : 'Activate'}
-                          </button>
-                          {/* Delete */}
-                          <button
-                            onClick={() => handleDelete(user)}
-                            disabled={!!busy}
-                            className="px-2 py-1 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 transition-colors disabled:opacity-50"
-                          >
-                            {deleteMut.isPending && deleteMut.variables === user.id ? '...' : 'Delete'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
+                {filtered.map((user) => (
+                  <UserRow
+                    key={user.id}
+                    user={user}
+                    activateMut={activateMut}
+                    deactivateMut={deactivateMut}
+                    deleteMut={deleteMut}
+                    roleUpdateMut={roleUpdateMut}
+                    handleToggleActive={handleToggleActive}
+                    handleRoleChange={handleRoleChange}
+                    handleDelete={handleDelete}
+                    formatDate={formatDate}
+                  />
+                ))}
               </tbody>
             </table>
           </div>

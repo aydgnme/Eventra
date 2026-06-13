@@ -9,6 +9,7 @@ import StatusBadge from '../components/StatusBadge'
 import { useToast } from '../context/ToastContext'
 import { useEvent } from '../hooks/useEvents'
 import { useParticipants, useParticipantCount, useCheckin, useUndoCheckin, useRejectParticipant } from '../hooks/useRegistrations'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { registrationService } from '../services/registrationService'
 import QRScanner from '../components/QRScanner'
 
@@ -31,6 +32,139 @@ function formatDate(dt) {
   })
 }
 
+function ParticipantRow({ reg, i, checkinMutation, undoCheckinMutation, rejectMutation, addToast }) {
+  const isCheckedIn = reg.status === 'attended' || reg.checked_in
+  const canCheckin = reg.status === 'registered' || isCheckedIn
+  const canReject = reg.status !== 'cancelled'
+
+  return (
+    <tr
+      className={`border-b border-border last:border-0 hover:bg-surface-alt transition-colors ${i % 2 === 0 ? '' : 'bg-surface-alt/30'}`}
+    >
+      <td className="px-5 py-3.5 font-medium text-fg">
+        {nameFromEmail(reg.user?.email)}
+      </td>
+      <td className="px-5 py-3.5 text-fg-2">{reg.user?.email || '—'}</td>
+      <td className="px-5 py-3.5">
+        <StatusBadge status={reg.status} />
+      </td>
+      <td className="px-5 py-3.5 text-fg-3">{formatDate(reg.registered_at)}</td>
+      <td className="px-5 py-3.5 text-center">
+        {canCheckin && (
+          <button
+            onClick={() =>
+              isCheckedIn
+                ? undoCheckinMutation.mutate(reg.user?.id)
+                : checkinMutation.mutate(reg.user?.id)
+            }
+            disabled={checkinMutation.isPending || undoCheckinMutation.isPending}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50 ${
+              isCheckedIn
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
+                : 'bg-surface-alt border border-border text-fg-3 hover:text-fg hover:bg-border'
+            }`}
+            title={isCheckedIn ? 'Undo check-in' : 'Check in'}
+          >
+            {isCheckedIn ? (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Checked In
+              </>
+            ) : (
+              <>
+                <UserCheck className="w-3.5 h-3.5" />
+                Check In
+              </>
+            )}
+          </button>
+        )}
+      </td>
+      <td className="px-5 py-3.5 text-center">
+        {canReject && (
+          <button
+            onClick={() => {
+              if (window.confirm(`Remove ${nameFromEmail(reg.user?.email)} from this event?`)) {
+                rejectMutation.mutate(reg.user?.id, {
+                  onSuccess: () => addToast('Participant removed', 'info'),
+                  onError: (err) => addToast(err.message, 'error'),
+                })
+              }
+            }}
+            disabled={rejectMutation.isPending}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-all disabled:opacity-50"
+            title="Remove participant"
+          >
+            <UserX className="w-3.5 h-3.5" />
+            Remove
+          </button>
+        )}
+      </td>
+    </tr>
+  )
+}
+
+function ParticipantsTableContent({ isLoading, error, registrations, search, statusFilter, checkinMutation, undoCheckinMutation, rejectMutation, addToast }) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-fg-3">
+        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+        Loading participants...
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 text-red-500 text-sm p-6">
+        <AlertCircle className="w-4 h-4 shrink-0" />
+        {error.message}
+      </div>
+    )
+  }
+
+  if (registrations.length === 0) {
+    return (
+      <div className="text-center py-16 text-fg-3">
+        <Users className="w-10 h-10 mx-auto mb-3 opacity-25" />
+        <p className="font-medium text-fg-2">No participants found</p>
+        <p className="text-sm mt-1">
+          {search || statusFilter !== 'all' ? 'Try adjusting your filters' : 'No registrations yet'}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border bg-surface-alt">
+            <th className="text-left px-5 py-3 text-xs font-semibold text-fg-3 uppercase tracking-wide">Name</th>
+            <th className="text-left px-5 py-3 text-xs font-semibold text-fg-3 uppercase tracking-wide">Email</th>
+            <th className="text-left px-5 py-3 text-xs font-semibold text-fg-3 uppercase tracking-wide">Status</th>
+            <th className="text-left px-5 py-3 text-xs font-semibold text-fg-3 uppercase tracking-wide">Registered</th>
+            <th className="text-center px-5 py-3 text-xs font-semibold text-fg-3 uppercase tracking-wide">Check-in</th>
+            <th className="text-center px-5 py-3 text-xs font-semibold text-fg-3 uppercase tracking-wide">Remove</th>
+          </tr>
+        </thead>
+        <tbody>
+          {registrations.map((reg, i) => (
+            <ParticipantRow
+              key={reg.id}
+              reg={reg}
+              i={i}
+              checkinMutation={checkinMutation}
+              undoCheckinMutation={undoCheckinMutation}
+              rejectMutation={rejectMutation}
+              addToast={addToast}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'registered', label: 'Registered' },
@@ -40,6 +174,7 @@ const STATUS_FILTERS = [
 ]
 
 export default function ParticipantsPage() {
+  useDocumentTitle('Participants')
   const { id } = useParams()
   const navigate = useNavigate()
   const { addToast } = useToast()
@@ -165,113 +300,17 @@ export default function ParticipantsPage() {
 
         {/* Table */}
         <div className="bg-surface border border-border rounded-xl shadow-sm overflow-hidden">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-16 text-fg-3">
-              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-              Loading participants...
-            </div>
-          ) : error ? (
-            <div className="flex items-center gap-2 text-red-500 text-sm p-6">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {error.message}
-            </div>
-          ) : registrations.length === 0 ? (
-            <div className="text-center py-16 text-fg-3">
-              <Users className="w-10 h-10 mx-auto mb-3 opacity-25" />
-              <p className="font-medium text-fg-2">No participants found</p>
-              <p className="text-sm mt-1">
-                {search || statusFilter !== 'all' ? 'Try adjusting your filters' : 'No registrations yet'}
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-surface-alt">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-fg-3 uppercase tracking-wide">Name</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-fg-3 uppercase tracking-wide">Email</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-fg-3 uppercase tracking-wide">Status</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-fg-3 uppercase tracking-wide">Registered</th>
-                    <th className="text-center px-5 py-3 text-xs font-semibold text-fg-3 uppercase tracking-wide">Check-in</th>
-                    <th className="text-center px-5 py-3 text-xs font-semibold text-fg-3 uppercase tracking-wide">Remove</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {registrations.map((reg, i) => {
-                    const isCheckedIn = reg.status === 'attended' || reg.checked_in
-                    const canCheckin = reg.status === 'registered' || isCheckedIn
-                    const canReject = reg.status !== 'cancelled'
-
-                    return (
-                      <tr
-                        key={reg.id}
-                        className={`border-b border-border last:border-0 hover:bg-surface-alt transition-colors ${i % 2 === 0 ? '' : 'bg-surface-alt/30'}`}
-                      >
-                        <td className="px-5 py-3.5 font-medium text-fg">
-                          {nameFromEmail(reg.user?.email)}
-                        </td>
-                        <td className="px-5 py-3.5 text-fg-2">{reg.user?.email || '—'}</td>
-                        <td className="px-5 py-3.5">
-                          <StatusBadge status={reg.status} />
-                        </td>
-                        <td className="px-5 py-3.5 text-fg-3">{formatDate(reg.registered_at)}</td>
-                        <td className="px-5 py-3.5 text-center">
-                          {canCheckin && (
-                            <button
-                              onClick={() =>
-                                isCheckedIn
-                                  ? undoCheckinMutation.mutate(reg.user?.id)
-                                  : checkinMutation.mutate(reg.user?.id)
-                              }
-                              disabled={checkinMutation.isPending || undoCheckinMutation.isPending}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50 ${
-                                isCheckedIn
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
-                                  : 'bg-surface-alt border border-border text-fg-3 hover:text-fg hover:bg-border'
-                              }`}
-                              title={isCheckedIn ? 'Undo check-in' : 'Check in'}
-                            >
-                              {isCheckedIn ? (
-                                <>
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  Checked In
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="w-3.5 h-3.5" />
-                                  Check In
-                                </>
-                              )}
-                            </button>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5 text-center">
-                          {canReject && (
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`Remove ${nameFromEmail(reg.user?.email)} from this event?`)) {
-                                  rejectMutation.mutate(reg.user?.id, {
-                                    onSuccess: () => addToast('Participant removed', 'info'),
-                                    onError: (err) => addToast(err.message, 'error'),
-                                  })
-                                }
-                              }}
-                              disabled={rejectMutation.isPending}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-all disabled:opacity-50"
-                              title="Remove participant"
-                            >
-                              <UserX className="w-3.5 h-3.5" />
-                              Remove
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <ParticipantsTableContent
+            isLoading={isLoading}
+            error={error}
+            registrations={registrations}
+            search={search}
+            statusFilter={statusFilter}
+            checkinMutation={checkinMutation}
+            undoCheckinMutation={undoCheckinMutation}
+            rejectMutation={rejectMutation}
+            addToast={addToast}
+          />
         </div>
       </div>
     </div>

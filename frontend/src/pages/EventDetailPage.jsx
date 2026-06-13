@@ -5,6 +5,7 @@ import {
   ArrowLeft, Loader2, AlertCircle, CheckCircle2, Timer, QrCode,
 } from 'lucide-react'
 import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 import QRCodeDisplay from '../components/QRCodeDisplay'
 import ICSExportButton from '../components/ICSExportButton'
 import FileTypeIcon from '../components/FileTypeIcon'
@@ -14,6 +15,7 @@ import { useToast } from '../context/ToastContext'
 import { useEvent } from '../hooks/useEvents'
 import { useRegistrationStatus, useRegistrationCount, useRegister, useCancelRegistration, useLeaveWaitlist, useJoinWaitlist } from '../hooks/useRegistrations'
 import { useEventFeedback, useSubmitFeedback } from '../hooks/useFeedback'
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { apiUrl } from '../services/api'
 
 const CATEGORY_STYLES = {
@@ -267,6 +269,7 @@ export default function EventDetailPage() {
   const { data: countData } = useRegistrationCount(id, { enabled: !!data?.event?.capacity })
 
   const event = data?.event
+  useDocumentTitle(event?.title)
 
   if (isLoading) {
     return (
@@ -446,6 +449,7 @@ export default function EventDetailPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }
